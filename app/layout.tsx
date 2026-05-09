@@ -16,6 +16,10 @@ export const metadata: Metadata = {
   description:
     "Take control of your finances with Money Agent. Smart tracking, deep analytics, and AI-powered insights for your personal wealth management.",
   keywords: ["finance", "expense tracker", "budget", "AI", "personal finance", "money management"],
+  icons: {
+    icon: "/icon.png",
+    apple: "/icon.png",
+  },
   openGraph: {
     title: "Money Agent — Smart Personal Finance Manager",
     description: "Smart tracking, deep analytics, and AI-powered financial insights.",
