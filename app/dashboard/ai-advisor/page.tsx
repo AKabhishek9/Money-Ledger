@@ -63,25 +63,45 @@ Recent Transactions: ${transactions.slice(0, 10).map(t => `${t.type} ${formatCur
     setLoading(true);
 
     try {
-      // Get Firebase ID Token for secure API call
-      const idToken = await user.getIdToken();
+      const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
+      if (!apiKey) throw new Error('AI service is not configured.');
 
-      const res = await fetch('/api/ai', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({ message: userMsg, context }),
-      });
-      
-      const data = await res.json();
-      
+      const systemPrompt = `You are Money Agent, an intelligent personal finance advisor. You help users manage their money wisely.
+
+Current Financial Context:
+${context || 'No financial data provided yet.'}
+
+Guidelines:
+- Give specific, actionable financial advice
+- Use the provided financial data to make personalized suggestions
+- Format currency in Indian Rupees (₹)
+- Be encouraging but honest about spending habits
+- Suggest concrete savings strategies
+- Keep responses concise and practical
+- Use bullet points for clarity
+- If no data is available, give general financial tips`;
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: `${systemPrompt}\n\nUser: ${userMsg}` }] }],
+            generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
+          }),
+        }
+      );
+
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to get AI response');
+        const err = await res.text();
+        console.error('Gemini error:', err);
+        throw new Error('AI service unavailable. Please try again.');
       }
 
-      setMessages(prev => [...prev, { role: 'assistant', content: data.response || 'No response' }]);
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated. Please try again.';
+      setMessages(prev => [...prev, { role: 'assistant', content: text }]);
     } catch (err: any) {
       console.error('AI Advisor error:', err);
       setMessages(prev => [...prev, { role: 'assistant', content: err.message || 'Failed to connect to AI service.' }]);
@@ -90,6 +110,7 @@ Recent Transactions: ${transactions.slice(0, 10).map(t => `${t.type} ${formatCur
       sendingRef.current = false;
     }
   }, [input, loading, user, context]);
+
 
   const suggestions = [
     'Analyze my spending this month',
