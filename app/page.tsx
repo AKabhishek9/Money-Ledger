@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import {
   Sparkles,
   TrendingUp,
@@ -53,14 +52,6 @@ const features = [
   },
 ];
 
-const fadeInUp = {
-  hidden: { opacity: 0, y: 30 },
-  visible: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { delay: i * 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] },
-  }),
-};
 
 export default function LandingPage() {
   return (
@@ -100,45 +91,33 @@ export default function LandingPage() {
           style={{ background: 'radial-gradient(circle, rgba(0, 206, 201, 0.3), transparent)' }} />
 
         <div className="max-w-4xl mx-auto text-center relative z-10">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+          <div
           >
             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium mb-6"
               style={{ background: 'rgba(108, 92, 231, 0.12)', color: 'var(--accent-primary)', border: '1px solid rgba(108, 92, 231, 0.2)' }}>
               <Zap size={12} />
               Powered by Gemini AI
             </div>
-          </motion.div>
+          </div>
 
-          <motion.h1
+          <h1
             className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-[1.1] mb-6"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1 }}
           >
             <span style={{ color: 'var(--text-primary)' }}>Your Money,</span>
             <br />
             <span className="gradient-text">Intelligently Managed</span>
-          </motion.h1>
+          </h1>
 
-          <motion.p
+          <p
             className="text-lg sm:text-xl max-w-2xl mx-auto mb-10 leading-relaxed"
             style={{ color: 'var(--text-secondary)' }}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.25 }}
           >
             Track expenses, manage multiple wallets, handle loans, and get AI-powered 
             financial insights — all in one beautiful dashboard.
-          </motion.p>
+          </p>
 
-          <motion.div
+          <div
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
           >
             <Link href="/login?mode=signup" className="btn-primary text-base px-8 py-3.5 flex items-center gap-2 no-underline" id="hero-cta">
               Start for Free
@@ -147,15 +126,12 @@ export default function LandingPage() {
             <Link href="#features" className="btn-secondary text-base px-8 py-3.5 no-underline" id="hero-features">
               Explore Features
             </Link>
-          </motion.div>
+          </div>
         </div>
 
         {/* Dashboard preview mockup */}
-        <motion.div
+        <div
           className="max-w-5xl mx-auto mt-16 relative"
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.6 }}
         >
           <div className="rounded-2xl overflow-hidden border border-[var(--border-subtle)] shadow-2xl"
             style={{ background: 'var(--bg-secondary)' }}>
@@ -217,19 +193,14 @@ export default function LandingPage() {
           {/* Glow beneath */}
           <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 w-3/4 h-20 rounded-full"
             style={{ background: 'radial-gradient(ellipse, rgba(108, 92, 231, 0.2), transparent)', filter: 'blur(30px)' }} />
-        </motion.div>
+        </div>
       </section>
 
       {/* ===== FEATURES ===== */}
       <section id="features" className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
-          <motion.div
+          <div
             className="text-center mb-16"
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.3 }}
-            variants={fadeInUp}
-            custom={0}
           >
             <h2 className="text-3xl sm:text-4xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
               Everything You Need to
@@ -238,17 +209,13 @@ export default function LandingPage() {
             <p className="text-base max-w-xl mx-auto" style={{ color: 'var(--text-secondary)' }}>
               Powerful features designed to give you complete control and clarity over your finances.
             </p>
-          </motion.div>
+          </div>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
             {features.map((feature, i) => (
-              <motion.div
+              <div
                 key={feature.title}
                 className="glass-card p-6 group cursor-default"
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true, amount: 0.2 }}
-                variants={fadeInUp}
                 custom={i + 1}
               >
                 <div
@@ -263,7 +230,7 @@ export default function LandingPage() {
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
                   {feature.description}
                 </p>
-              </motion.div>
+              </div>
             ))}
           </div>
         </div>
@@ -271,12 +238,8 @@ export default function LandingPage() {
 
       {/* ===== CTA ===== */}
       <section className="py-24 px-6">
-        <motion.div
+        <div
           className="max-w-3xl mx-auto text-center glass-card p-12 relative overflow-hidden"
-          initial={{ opacity: 0, y: 30 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
         >
           <div className="absolute inset-0 opacity-10"
             style={{ background: 'var(--gradient-primary)' }} />
@@ -292,7 +255,7 @@ export default function LandingPage() {
               <ArrowRight size={18} />
             </Link>
           </div>
-        </motion.div>
+        </div>
       </section>
 
       {/* ===== FOOTER ===== */}
