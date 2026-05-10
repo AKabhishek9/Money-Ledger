@@ -10,7 +10,7 @@ import { Plus, X, Trash2, Shield, CreditCard, FileText, Eye, EyeOff, Lock } from
 
 export default function VaultPage() {
   const { user } = useAuth();
-  const { vault: items, loading, refresh } = useData();
+  const { vault: items, loading, error, refresh } = useData();
 
   const [showModal, setShowModal] = useState(false);
   const [vaultType, setVaultType] = useState<VaultItemType>('bank');
@@ -102,6 +102,16 @@ export default function VaultPage() {
   const mask = (val: string) => val.replace(/./g, '•');
 
   if (loading) return <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="skeleton h-32 rounded-xl" />)}</div>;
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center py-24 gap-4">
+      <p className="text-base font-medium" style={{ color: 'var(--accent-danger)' }}>
+        Failed to load data. Please check your internet connection.
+      </p>
+      <button onClick={refresh} className="btn-primary text-sm px-6">Try Again</button>
+    </div>
+  );
+
 
   const itemsList = decryptedItems || [];
 

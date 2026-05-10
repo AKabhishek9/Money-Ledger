@@ -59,8 +59,7 @@ export default function DashboardLayout({
     <div className="min-h-screen flex" style={{ background: 'var(--bg-primary)' }}>
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
       <main 
-        className={`flex-1 min-h-screen transition-all duration-300 ease-in-out`}
-        style={{ marginLeft: collapsed ? '72px' : '280px' }}
+        className={`flex-1 min-h-screen transition-all duration-300 ease-in-out ${collapsed ? 'lg:ml-[72px]' : 'lg:ml-[280px]'}`}
       >
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 pt-16 lg:pt-6">
           <ErrorBoundary>

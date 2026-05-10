@@ -3,7 +3,15 @@
 const ALGORITHM = 'AES-GCM';
 const KEY_LENGTH = 256;
 
+// Cache the derived key in memory — safe because it never leaves the browser
+// and is cleared automatically when the user closes the tab
+const keyCache = new Map<string, CryptoKey>();
+
 async function getEncryptionKey(userId: string): Promise<CryptoKey> {
+  if (keyCache.has(userId)) {
+    return keyCache.get(userId)!;
+  }
+
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(userId.padEnd(32, '0').slice(0, 32)),
@@ -11,13 +19,16 @@ async function getEncryptionKey(userId: string): Promise<CryptoKey> {
     false,
     ['deriveKey']
   );
-  return crypto.subtle.deriveKey(
+  const key = await crypto.subtle.deriveKey(
     { name: 'PBKDF2', salt: new TextEncoder().encode('moneyai-vault'), iterations: 100000, hash: 'SHA-256' },
     keyMaterial,
     { name: ALGORITHM, length: KEY_LENGTH },
     false,
     ['encrypt', 'decrypt']
   );
+
+  keyCache.set(userId, key);
+  return key;
 }
 
 export async function encryptField(value: string, userId: string): Promise<string> {

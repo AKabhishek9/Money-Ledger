@@ -8,7 +8,7 @@ import Link from 'next/link';
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { sections, transactions, loading } = useData();
+  const { sections, transactions, loading, error, refresh } = useData();
 
   const totalBalance = sections.reduce((s, sec) => s + sec.balance, 0);
   const now = new Date();
@@ -33,6 +33,15 @@ export default function DashboardPage() {
       </div>
     );
   }
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center py-24 gap-4">
+      <p className="text-base font-medium" style={{ color: 'var(--accent-danger)' }}>
+        Failed to load data. Please check your internet connection.
+      </p>
+      <button onClick={refresh} className="btn-primary text-sm px-6">Try Again</button>
+    </div>
+  );
 
   const stats = [
     { label: 'Total Balance', value: formatCurrency(totalBalance), icon: Wallet, color: '#6c5ce7', gradient: 'var(--gradient-primary)' },

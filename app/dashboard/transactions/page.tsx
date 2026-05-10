@@ -3,11 +3,13 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
+import ConfirmModal from '@/components/ConfirmModal';
+import { getTransactions } from '@/lib/firestore';
 import { addTransaction, deleteTransaction } from '@/lib/firestore';
 import { formatCurrency, formatDate, formatDateInput } from '@/lib/utils';
 import type { Section, Person, Transaction, TransactionType } from '@/lib/types';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES } from '@/lib/types';
-import { Plus, X, ArrowUpRight, ArrowDownRight, ArrowRightLeft, Search, Filter, Trash2 } from 'lucide-react';
+import { Plus, X, ArrowUpRight, ArrowDownRight, ArrowRightLeft, Search, Filter, Trash2, Pencil } from 'lucide-react';
 
 export default function TransactionsPage() {
   const { user } = useAuth();
@@ -26,29 +28,89 @@ export default function TransactionsPage() {
   const [date, setDate] = useState(formatDateInput(new Date()));
   const [loanDir, setLoanDir] = useState<'given' | 'received'>('given');
   const [submitting, setSubmitting] = useState(false);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
+  const [confirmDeleteTx, setConfirmDeleteTx] = useState<string | null>(null);
+  const [lastDoc, setLastDoc] = useState<unknown>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [extraTransactions, setExtraTransactions] = useState<Transaction[]>([]);
+
+  const handleEdit = (tx: Transaction) => {
+    setEditingTx(tx);
+    setAmount(String(tx.amount));
+    setNote(tx.note || '');
+    setCategory(tx.category || '');
+    setDate(formatDateInput(tx.date instanceof Date ? tx.date : new Date(tx.date)));
+    setTxType(tx.type);
+    setSectionId(tx.sectionId);
+    setToSectionId(tx.toSectionId || '');
+    setPersonId(tx.personId || '');
+    setLoanDir(tx.loanDirection || 'given');
+    setShowModal(true);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!confirmDeleteTx) return;
+    try {
+      await deleteTransaction(confirmDeleteTx);
+      refresh();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setConfirmDeleteTx(null);
+    }
+  };
+
+  const loadMore = async () => {
+    if (!user || !lastDoc || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const result = await getTransactions(user.uid, 50, lastDoc);
+      setExtraTransactions(prev => [...prev, ...result.data]);
+      setLastDoc(result.lastDoc);
+      setHasMore(result.lastDoc !== null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !amount || !sectionId) return;
     setSubmitting(true);
     try {
+      if (editingTx) {
+        await deleteTransaction(editingTx.id);
+      }
       await addTransaction(user.uid, {
         sectionId, type: txType, amount: parseFloat(amount), category, note,
         date: new Date(date),
         ...(txType === 'transfer' ? { toSectionId } : {}),
         ...(txType === 'loan' ? { personId, loanDirection: loanDir } : {}),
       });
-      refresh(); // Refresh central cache
+      refresh();
       setSubmitting(false);
-      setShowModal(false); 
-      setAmount(''); setNote(''); setCategory('');
+      setShowModal(false);
+      setAmount('');
+      setNote('');
+      setCategory('');
+      setDate(formatDateInput(new Date()));
+      setTxType('expense');
+      setSectionId(sections[0]?.id || '');
+      setToSectionId('');
+      setPersonId('');
+      setLoanDir('given');
+      setEditingTx(null);
     } catch (err) { 
       console.error(err); 
       setSubmitting(false);
     }
   };
 
-  const filtered = transactions.filter(tx => {
+  const allTransactions = [...transactions, ...extraTransactions];
+  const filtered = allTransactions.filter(tx => {
     if (filterType !== 'all' && tx.type !== filterType) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -84,6 +146,16 @@ export default function TransactionsPage() {
   const categories = txType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
   if (loading) return <div className="space-y-4">{[1,2,3,4,5].map(i => <div key={i} className="skeleton h-16 rounded-xl" />)}</div>;
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center py-24 gap-4">
+      <p className="text-base font-medium" style={{ color: 'var(--accent-danger)' }}>
+        Failed to load data. Please check your internet connection.
+      </p>
+      <button onClick={refresh} className="btn-primary text-sm px-6">Try Again</button>
+    </div>
+  );
+
 
   return (
     <div className="space-y-6">
@@ -141,13 +213,15 @@ export default function TransactionsPage() {
                 {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}{formatCurrency(tx.amount)}
               </p>
               <button
-                onClick={async () => {
-                  if (!confirm('Delete this transaction? This will reverse the balance changes.')) return;
-                  try {
-                    await deleteTransaction(tx.id);
-                    refresh();
-                  } catch (e) { console.error(e); }
-                }}
+                onClick={() => handleEdit(tx)}
+                className="opacity-0 group-hover:opacity-100 transition-opacity btn-ghost p-1"
+                style={{ color: 'var(--accent-primary)' }}
+                title="Edit transaction"
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                onClick={() => setConfirmDeleteTx(tx.id)}
                 className="opacity-0 group-hover:opacity-100 transition-opacity btn-ghost p-1"
                 style={{ color: 'var(--accent-danger)' }}
                 title="Delete transaction"
@@ -164,7 +238,7 @@ export default function TransactionsPage() {
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>New Transaction</h2>
+              <h2 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{editingTx ? 'Edit Transaction' : 'New Transaction'}</h2>
               <button onClick={() => setShowModal(false)} className="btn-ghost p-1"><X size={20} /></button>
             </div>
 
@@ -249,12 +323,34 @@ export default function TransactionsPage() {
               </div>
 
               <button type="submit" disabled={submitting} className="btn-primary w-full py-3" id="tx-submit">
-                {submitting ? 'Adding...' : 'Add Transaction'}
+                {submitting ? (editingTx ? 'Saving...' : 'Adding...') : (editingTx ? 'Save Changes' : 'Add Transaction')}
               </button>
             </form>
           </div>
         </div>
       )}
     </div>
+
+      {hasMore && !searchQuery && filterType === 'all' && (
+        <div className="flex justify-center pt-4 pb-2">
+          <button
+            onClick={loadMore}
+            disabled={loadingMore}
+            className="btn-secondary text-sm px-8"
+          >
+            {loadingMore ? 'Loading...' : 'Load More'}
+          </button>
+        </div>
+      )}
+
+      <ConfirmModal
+        open={!!confirmDeleteTx}
+        title="Delete Transaction"
+        message="This will permanently delete the transaction and reverse its balance changes."
+        confirmLabel="Delete"
+        danger
+        onConfirm={handleDeleteConfirmed}
+        onCancel={() => setConfirmDeleteTx(null)}
+      />
   );
 }

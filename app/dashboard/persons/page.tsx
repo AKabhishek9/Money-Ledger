@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
+import ConfirmModal from '@/components/ConfirmModal';
 import { addPerson, deletePerson } from '@/lib/firestore';
 import { formatCurrency } from '@/lib/utils';
 import type { PersonType } from '@/lib/types';
@@ -10,13 +11,14 @@ import { Plus, X, Trash2, UserCircle } from 'lucide-react';
 
 export default function PersonsPage() {
   const { user } = useAuth();
-  const { persons, loading, refresh } = useData();
+  const { persons, loading, error, refresh } = useData();
 
   const [showModal, setShowModal] = useState(false);
   const [name, setName] = useState('');
   const [type, setType] = useState<PersonType>('loan');
   const [personNote, setPersonNote] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const handleAdd = async (e: React.FormEvent) => {
@@ -38,17 +40,29 @@ export default function PersonsPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this person?')) return;
+  const handleDelete = async () => {
+    if (!confirmDelete) return;
     try {
-      await deletePerson(id);
+      await deletePerson(confirmDelete);
       refresh();
     } catch (e) {
       console.error(e);
+    } finally {
+      setConfirmDelete(null);
     }
   };
 
   if (loading) return <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{[1,2,3].map(i => <div key={i} className="skeleton h-32 rounded-xl" />)}</div>;
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center py-24 gap-4">
+      <p className="text-base font-medium" style={{ color: 'var(--accent-danger)' }}>
+        Failed to load data. Please check your internet connection.
+      </p>
+      <button onClick={refresh} className="btn-primary text-sm px-6">Try Again</button>
+    </div>
+  );
+
 
   const personsList = persons || [];
 
@@ -80,7 +94,7 @@ export default function PersonsPage() {
                   style={{ background: 'var(--gradient-primary)', color: '#fff' }}>
                   {p.name[0].toUpperCase()}
                 </div>
-                <button onClick={() => handleDelete(p.id)} className="opacity-0 group-hover:opacity-100 transition-opacity btn-ghost p-1" style={{ color: 'var(--accent-danger)' }}>
+                <button onClick={() => setConfirmDelete(p.id)} className="opacity-0 group-hover:opacity-100 transition-opacity btn-ghost p-1" style={{ color: 'var(--accent-danger)' }}>
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -139,5 +153,15 @@ export default function PersonsPage() {
         </div>
       )}
     </div>
+
+      <ConfirmModal
+        open={!!confirmDelete}
+        title="Delete Person"
+        message="This will permanently delete this person and all their loan transactions."
+        confirmLabel="Delete"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(null)}
+      />
   );
 }

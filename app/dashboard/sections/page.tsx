@@ -3,13 +3,14 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
+import ConfirmModal from '@/components/ConfirmModal';
 import { addSection, deleteSection } from '@/lib/firestore';
 import { formatCurrency, getRandomColor } from '@/lib/utils';
 import { Plus, X, Trash2, Wallet } from 'lucide-react';
 
 export default function SectionsPage() {
   const { user } = useAuth();
-  const { sections, loading, refresh } = useData();
+  const { sections, loading, error, refresh } = useData();
 
   const [showModal, setShowModal] = useState(false);
   const [name, setName] = useState('');
@@ -34,20 +35,31 @@ export default function SectionsPage() {
     }
   };
 
-  const handleDelete = async (id: string, type: string) => {
-    if (type === 'default') return alert('Cannot delete default sections');
-    if (!confirm('Delete this section?')) return;
+    const handleDelete = async () => {
+    if (!confirmDelete) return;
     try {
-      await deleteSection(id);
-      refresh(); // Refresh central cache
+      await deleteSection(confirmDelete.id);
+      refresh();
     } catch (e) {
       console.error(e);
+    } finally {
+      setConfirmDelete(null);
     }
   };
 
   const colors = ['#6c5ce7', '#00b894', '#0984e3', '#e17055', '#fd79a8', '#fdcb6e', '#00cec9', '#a29bfe', '#74b9ff', '#fab1a0'];
 
   if (loading) return <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{[1,2,3,4].map(i => <div key={i} className="skeleton h-36 rounded-xl" />)}</div>;
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center py-24 gap-4">
+      <p className="text-base font-medium" style={{ color: 'var(--accent-danger)' }}>
+        Failed to load data. Please check your internet connection.
+      </p>
+      <button onClick={refresh} className="btn-primary text-sm px-6">Try Again</button>
+    </div>
+  );
+
 
   const sectionsList = sections || [];
 
@@ -71,7 +83,7 @@ export default function SectionsPage() {
                 <Wallet size={22} style={{ color: sec.color }} />
               </div>
               {sec.type === 'custom' && (
-                <button onClick={() => handleDelete(sec.id, sec.type)} className="opacity-0 group-hover:opacity-100 transition-opacity btn-ghost p-1" style={{ color: 'var(--accent-danger)' }}>
+                <button onClick={() => { if (sec.type === 'default') return; setConfirmDelete({ id: sec.id, type: sec.type }); }} className="opacity-0 group-hover:opacity-100 transition-opacity btn-ghost p-1" style={{ color: 'var(--accent-danger)' }}>
                   <Trash2 size={16} />
                 </button>
               )}
@@ -116,5 +128,15 @@ export default function SectionsPage() {
         </div>
       )}
     </div>
+
+      <ConfirmModal
+        open={!!confirmDelete}
+        title="Delete Section"
+        message="This will permanently delete the section and all its transactions. This cannot be undone."
+        confirmLabel="Delete"
+        danger
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDelete(null)}
+      />
   );
 }

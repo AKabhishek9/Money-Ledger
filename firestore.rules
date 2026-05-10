@@ -58,8 +58,13 @@ service cloud.firestore {
 
     // Vault — only the owner, extra strict
     match /vault/{itemId} {
-      allow read, write: if isAuthenticated() && isOwner(resource.data.userId);
-      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow read: if isAuthenticated() && isOwner(resource.data.userId);
+      allow create: if isAuthenticated()
+        && isOwner(request.resource.data.userId)
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0;
+      allow update: if isAuthenticated() && isOwner(resource.data.userId);
+      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
 
     // Deny everything else

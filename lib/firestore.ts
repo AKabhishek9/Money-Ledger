@@ -15,16 +15,20 @@ import {
   Timestamp,
   limit,
   setDoc,
+  startAfter,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Section, Person, Transaction, VaultItem, TransactionType } from '@/lib/types';
 
 // Helper for timeouts
-const withTimeout = <T>(promise: Promise<T>, ms: number = 15000): Promise<T> => {
+const withTimeout = <T>(promise: Promise<T>, ms: number = 8000): Promise<T> => {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error('Operation timed out after 15s')), ms)
+      setTimeout(
+        () => reject(new Error('Request timed out. Please check your internet connection and try again.')),
+        ms
+      )
     ),
   ]);
 };
@@ -34,8 +38,8 @@ const withTimeout = <T>(promise: Promise<T>, ms: number = 15000): Promise<T> => 
 export async function getSections(userId: string): Promise<Section[]> {
   const q = query(
     collection(db, 'sections'),
-    where('userId', '==', userId)
-    // Removed orderBy to avoid index requirement for now
+    where('userId', '==', userId),
+    orderBy('createdAt', 'asc')
   );
   const snap = await withTimeout(getDocs(q));
   return snap.docs
@@ -44,8 +48,7 @@ export async function getSections(userId: string): Promise<Section[]> {
       id: d.id,
       createdAt: (d.data().createdAt as Timestamp)?.toDate?.() || new Date(),
       updatedAt: (d.data().updatedAt as Timestamp)?.toDate?.() || new Date(),
-    }))
-    .sort((a: any, b: any) => a.createdAt - b.createdAt) as Section[];
+    })) as Section[];
 }
 
 export async function addSection(
@@ -99,8 +102,8 @@ export async function deleteSection(id: string): Promise<void> {
 export async function getPersons(userId: string): Promise<Person[]> {
   const q = query(
     collection(db, 'persons'),
-    where('userId', '==', userId)
-    // Removed orderBy
+    where('userId', '==', userId),
+    orderBy('createdAt', 'asc')
   );
   const snap = await withTimeout(getDocs(q));
   return snap.docs
@@ -109,8 +112,7 @@ export async function getPersons(userId: string): Promise<Person[]> {
       id: d.id,
       createdAt: (d.data().createdAt as Timestamp)?.toDate?.() || new Date(),
       updatedAt: (d.data().updatedAt as Timestamp)?.toDate?.() || new Date(),
-    }))
-    .sort((a: any, b: any) => a.createdAt - b.createdAt) as Person[];
+    })) as Person[];
 }
 
 export async function addPerson(
@@ -154,23 +156,33 @@ export async function deletePerson(id: string): Promise<void> {
 
 export async function getTransactions(
   userId: string,
-  limitCount: number = 50
-): Promise<Transaction[]> {
-  const q = query(
-    collection(db, 'transactions'),
+  limitCount: number = 50,
+  startAfterDoc?: unknown
+): Promise<{ data: Transaction[]; lastDoc: unknown | null }> {
+  const constraints: any[] = [
     where('userId', '==', userId),
-    // Removed orderBy, will sort in memory
-    limit(limitCount)
-  );
+    orderBy('date', 'desc'),
+    limit(limitCount),
+  ];
+
+  if (startAfterDoc) {
+    constraints.push(startAfter(startAfterDoc as any));
+  }
+
+  const q = query(collection(db, 'transactions'), ...constraints);
   const snap = await withTimeout(getDocs(q));
-  return snap.docs
-    .map((d) => ({
-      ...d.data(),
-      id: d.id,
-      date: (d.data().date as Timestamp)?.toDate?.() || new Date(),
-      createdAt: (d.data().createdAt as Timestamp)?.toDate?.() || new Date(),
-    }))
-    .sort((a: any, b: any) => b.date - a.date) as Transaction[];
+
+  const data = snap.docs.map((d) => ({
+    ...d.data(),
+    id: d.id,
+    date: (d.data().date as Timestamp)?.toDate?.() || new Date(),
+    createdAt: (d.data().createdAt as Timestamp)?.toDate?.() || new Date(),
+  })) as Transaction[];
+
+  return {
+    data,
+    lastDoc: snap.docs.length === limitCount ? snap.docs[snap.docs.length - 1] : null,
+  };
 }
 
 export async function addTransaction(
@@ -325,8 +337,7 @@ export async function getVaultItems(userId: string): Promise<VaultItem[]> {
   const q = query(
     collection(db, 'vault'),
     where('userId', '==', userId),
-    where('userId', '==', userId)
-    // Removed orderBy
+    orderBy('createdAt', 'desc')
   );
   const snap = await withTimeout(getDocs(q));
   return snap.docs
@@ -335,8 +346,7 @@ export async function getVaultItems(userId: string): Promise<VaultItem[]> {
       id: d.id,
       createdAt: (d.data().createdAt as Timestamp)?.toDate?.() || new Date(),
       updatedAt: (d.data().updatedAt as Timestamp)?.toDate?.() || new Date(),
-    }))
-    .sort((a: any, b: any) => b.createdAt - a.createdAt) as VaultItem[];
+    })) as VaultItem[];
 }
 
 export async function addVaultItem(

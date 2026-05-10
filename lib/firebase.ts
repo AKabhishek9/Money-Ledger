@@ -4,7 +4,6 @@ import {
   getFirestore, 
   initializeFirestore, 
   type Firestore, 
-  memoryLocalCache, 
   persistentLocalCache, 
   persistentMultipleTabManager 
 } from 'firebase/firestore';
@@ -35,20 +34,11 @@ const firebaseConfig = requiredEnvVars;
 const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 const auth: Auth = getAuth(app);
 
-// Use initializeFirestore with explicit cache settings
-// We use memoryLocalCache for development to avoid persistence issues and "offline" hangs
-if (process.env.NODE_ENV !== 'production') {
-  console.log('Initializing Firebase for project:', firebaseConfig.projectId);
-}
-
 const db: Firestore = initializeFirestore(app, {
-  localCache: memoryLocalCache(), 
-  // Standard settings are usually faster if network allows
+  localCache: persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  }),
 });
-
-if (process.env.NODE_ENV !== 'production') {
-  console.log('Firestore initialized with memory cache.');
-}
 
 export { auth, db };
 export default app;

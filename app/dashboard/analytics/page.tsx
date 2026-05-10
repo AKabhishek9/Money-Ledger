@@ -22,9 +22,19 @@ const Pie = dynamic(() => import('react-chartjs-2').then(mod => ({ default: mod.
 
 export default function AnalyticsPage() {
   const { user } = useAuth();
-  const { transactions, sections, persons, loading } = useData();
+  const { transactions, sections, persons, loading, error, refresh } = useData();
 
   if (loading) return <div className="space-y-6">{[1,2,3].map(i => <div key={i} className="skeleton h-64 rounded-xl" />)}</div>;
+
+  if (error) return (
+    <div className="flex flex-col items-center justify-center py-24 gap-4">
+      <p className="text-base font-medium" style={{ color: 'var(--accent-danger)' }}>
+        Failed to load data. Please check your internet connection.
+      </p>
+      <button onClick={refresh} className="btn-primary text-sm px-6">Try Again</button>
+    </div>
+  );
+
 
   // Memoize data processing to prevent memory pressure and redundant CPU work
   const processedData = useMemo(() => {
@@ -178,7 +188,7 @@ export default function AnalyticsPage() {
               <Pie data={pieData} options={pieOptions} />
             </div>
             <div className="flex-1 space-y-3 w-full">
-              {(processedData?.catLabels || [])
+              {[...(processedData?.catLabels || [])]
                 .sort((a, b) => (processedData?.catMap[b] || 0) - (processedData?.catMap[a] || 0))
                 .slice(0, 5)
                 .map((cat, i) => {
