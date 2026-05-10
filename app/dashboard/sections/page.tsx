@@ -17,6 +17,7 @@ export default function SectionsPage() {
   const [icon, setIcon] = useState('wallet');
   const [color, setColor] = useState(getRandomColor());
   const [submitting, setSubmitting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; type: string } | null>(null);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,6 +65,7 @@ export default function SectionsPage() {
   const sectionsList = sections || [];
 
   return (
+    <>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -138,5 +140,6 @@ export default function SectionsPage() {
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}
       />
+    </>
   );
 }

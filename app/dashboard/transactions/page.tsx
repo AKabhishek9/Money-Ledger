@@ -13,7 +13,7 @@ import { Plus, X, ArrowUpRight, ArrowDownRight, ArrowRightLeft, Search, Filter, 
 
 export default function TransactionsPage() {
   const { user } = useAuth();
-  const { transactions, sections, persons, loading, refresh } = useData();
+  const { transactions, sections, persons, loading, error, refresh } = useData();
   
   const [showModal, setShowModal] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
@@ -158,6 +158,7 @@ export default function TransactionsPage() {
 
 
   return (
+    <>
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Transactions</h1>
@@ -352,5 +353,6 @@ export default function TransactionsPage() {
         onConfirm={handleDeleteConfirmed}
         onCancel={() => setConfirmDeleteTx(null)}
       />
+    </>
   );
 }

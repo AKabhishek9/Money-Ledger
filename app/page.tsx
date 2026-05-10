@@ -216,7 +216,6 @@ export default function LandingPage() {
               <div
                 key={feature.title}
                 className="glass-card p-6 group cursor-default"
-                custom={i + 1}
               >
                 <div
                   className="w-11 h-11 rounded-xl flex items-center justify-center mb-4 transition-transform duration-300 group-hover:scale-110"

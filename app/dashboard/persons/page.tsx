@@ -17,7 +17,7 @@ export default function PersonsPage() {
   const [name, setName] = useState('');
   const [type, setType] = useState<PersonType>('loan');
   const [personNote, setPersonNote] = useState('');
-  const [error, setError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -25,7 +25,7 @@ export default function PersonsPage() {
     e.preventDefault();
     if (!user || !name) return;
     setSubmitting(true);
-    setError(null);
+    setFormError(null);
     try {
       await addPerson(user.uid, { name, type, note: personNote });
       refresh();
@@ -34,7 +34,7 @@ export default function PersonsPage() {
       setPersonNote('');
     } catch (e: any) { 
       console.error(e);
-      setError(e.message || 'Failed to add person');
+      setFormError(e.message || 'Failed to add person');
     } finally { 
       setSubmitting(false); 
     }
@@ -67,6 +67,7 @@ export default function PersonsPage() {
   const personsList = persons || [];
 
   return (
+    <>
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -139,9 +140,9 @@ export default function PersonsPage() {
                 <input value={personNote} onChange={e => setPersonNote(e.target.value)} placeholder="Relationship, context..." className="input-field" id="person-note" />
               </div>
 
-              {error && (
+              {formError && (
                 <div className="p-3 rounded-lg text-xs font-medium" style={{ background: 'var(--accent-danger)20', color: 'var(--accent-danger)' }}>
-                  {error}
+                  {formError}
                 </div>
               )}
 
@@ -163,5 +164,6 @@ export default function PersonsPage() {
         onConfirm={handleDelete}
         onCancel={() => setConfirmDelete(null)}
       />
+    </>  
   );
 }
