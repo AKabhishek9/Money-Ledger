@@ -6,12 +6,15 @@ import { useData } from '@/contexts/DataContext';
 import { addVaultItem, deleteVaultItem } from '@/lib/firestore';
 import { encryptField, decryptField } from '@/lib/encryption';
 import type { VaultItem, VaultItemType } from '@/lib/types';
-import { Plus, X, Trash2, Shield, CreditCard, FileText, Eye, EyeOff, Lock } from 'lucide-react';
+import { Plus, X, Trash2, Shield, CreditCard, FileText, Eye, EyeOff, Lock, Building2, StickyNote } from 'lucide-react';
+
+type VaultTab = 'accounts' | 'cards';
 
 export default function VaultPage() {
   const { user } = useAuth();
   const { vault: items, loading, error, isError, refresh } = useData();
 
+  const [activeTab, setActiveTab] = useState<VaultTab>('accounts');
   const [showModal, setShowModal] = useState(false);
   const [vaultType, setVaultType] = useState<VaultItemType>('bank');
   const [title, setTitle] = useState('');
@@ -93,27 +96,28 @@ export default function VaultPage() {
 
   const toggleReveal = (id: string) => setRevealed(r => ({ ...r, [id]: !r[id] }));
 
-  const typeIcon = (type: string) => {
-    if (type === 'bank') return <Shield size={20} style={{ color: '#6c5ce7' }} />;
-    if (type === 'card') return <CreditCard size={20} style={{ color: '#00cec9' }} />;
-    return <FileText size={20} style={{ color: '#fdcb6e' }} />;
-  };
-
   const mask = (val: string) => val.replace(/./g, '•');
 
   if (loading) return <div className="space-y-4">{[1,2,3].map(i => <div key={i} className="skeleton h-32 rounded-xl" />)}</div>;
 
-
-
-
   const itemsList = decryptedItems || [];
+  const accountItems = itemsList.filter(i => i.type === 'bank');
+  const cardDocItems = itemsList.filter(i => i.type === 'card' || i.type === 'note');
+
+  // Group bank accounts by Account Holder / person
+  const accountsByHolder: Record<string, VaultItem[]> = {};
+  accountItems.forEach(item => {
+    const holder = item.data?.['Account Holder'] || 'Other';
+    if (!accountsByHolder[holder]) accountsByHolder[holder] = [];
+    accountsByHolder[holder].push(item);
+  });
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
-            <Lock size={22} style={{ color: 'var(--accent-primary)' }} /> Secure Vault
+            <Lock size={22} style={{ color: 'var(--accent-primary)' }} /> Vault
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Store sensitive financial information securely</p>
         </div>
@@ -138,47 +142,125 @@ export default function VaultPage() {
         </div>
       )}
 
-      {itemsList.length === 0 ? (
-        <div className="text-center py-16 stat-card">
-          <Shield size={48} className="mx-auto mb-4" style={{ color: 'var(--text-tertiary)' }} />
-          <p className="text-lg mb-2" style={{ color: 'var(--text-tertiary)' }}>Your vault is empty</p>
-          <button onClick={() => setShowModal(true)} className="btn-primary text-sm">Add First Item</button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {itemsList.map((item, i) => (
-            <div key={item.id} className="stat-card group animate-fade-in-up" style={{ animationDelay: `${i * 80}ms` }}>
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--bg-surface-hover)' }}>
-                    {typeIcon(item.type)}
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.title}</h3>
-                    <span className="badge badge-transfer text-xs">{item.type}</span>
-                  </div>
-                </div>
-                <div className="flex gap-1">
-                  <button onClick={() => toggleReveal(item.id)} className="btn-ghost p-1" title="Toggle visibility">
-                    {revealed[item.id] ? <EyeOff size={14} /> : <Eye size={14} />}
-                  </button>
-                  <button onClick={() => handleDelete(item.id)} className="opacity-0 group-hover:opacity-100 btn-ghost p-1" style={{ color: 'var(--accent-danger)' }}>
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-              <div className="space-y-1.5 mt-3">
-                {Object.entries(item.data || {}).map(([key, val]) => (
-                  <div key={key} className="flex justify-between text-xs">
-                    <span style={{ color: 'var(--text-tertiary)' }}>{key}</span>
-                    <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>
-                      {revealed[item.id] ? val : mask(val as string)}
-                    </span>
-                  </div>
-                ))}
-              </div>
+      {/* Tabs */}
+      <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-surface)' }}>
+        <button
+          onClick={() => setActiveTab('accounts')}
+          className={`flex-1 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${activeTab === 'accounts' ? 'text-white' : ''}`}
+          style={activeTab === 'accounts' ? { background: 'var(--accent-primary)' } : { color: 'var(--text-secondary)' }}
+        >
+          <Building2 size={16} /> Accounts
+        </button>
+        <button
+          onClick={() => setActiveTab('cards')}
+          className={`flex-1 py-2.5 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all ${activeTab === 'cards' ? 'text-white' : ''}`}
+          style={activeTab === 'cards' ? { background: 'var(--accent-primary)' } : { color: 'var(--text-secondary)' }}
+        >
+          <CreditCard size={16} /> Cards & Docs
+        </button>
+      </div>
+
+      {/* Accounts Tab */}
+      {activeTab === 'accounts' && (
+        <div className="space-y-6">
+          {Object.keys(accountsByHolder).length === 0 ? (
+            <div className="text-center py-16 stat-card">
+              <Building2 size={48} className="mx-auto mb-4" style={{ color: 'var(--text-tertiary)' }} />
+              <p className="text-lg mb-2" style={{ color: 'var(--text-tertiary)' }}>No bank accounts saved</p>
+              <button onClick={() => { setVaultType('bank'); setShowModal(true); }} className="btn-primary text-sm">Add Bank Account</button>
             </div>
-          ))}
+          ) : (
+            Object.entries(accountsByHolder).map(([holder, accts]) => (
+              <div key={holder} className="rounded-2xl overflow-hidden" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-subtle)' }}>
+                <div className="px-5 py-3 border-b flex items-center gap-2" style={{ borderColor: 'var(--border-subtle)' }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+                    style={{ background: 'var(--gradient-primary)', color: '#fff' }}>
+                    {holder[0].toUpperCase()}
+                  </div>
+                  <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{holder}</h3>
+                </div>
+                <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+                  {accts.map(item => (
+                    <div key={item.id} className="px-5 py-4 flex items-center gap-4 group hover:bg-[var(--bg-surface-hover)] transition-colors">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(108,92,231,0.1)' }}>
+                        <Shield size={18} style={{ color: '#6c5ce7' }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{item.title}</p>
+                        <div className="flex gap-4 mt-1">
+                          {Object.entries(item.data || {}).filter(([k]) => k !== 'Account Holder').map(([key, val]) => (
+                            <div key={key}>
+                              <span className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{key}: </span>
+                              <span className="text-xs font-mono" style={{ color: 'var(--text-secondary)' }}>
+                                {revealed[item.id] ? val : mask(val as string)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        <button onClick={() => toggleReveal(item.id)} className="btn-ghost p-1" title="Toggle visibility">
+                          {revealed[item.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                        <button onClick={() => handleDelete(item.id)} className="opacity-0 group-hover:opacity-100 btn-ghost p-1" style={{ color: 'var(--accent-danger)' }}>
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* Cards & Docs Tab */}
+      {activeTab === 'cards' && (
+        <div className="space-y-4">
+          {cardDocItems.length === 0 ? (
+            <div className="text-center py-16 stat-card">
+              <CreditCard size={48} className="mx-auto mb-4" style={{ color: 'var(--text-tertiary)' }} />
+              <p className="text-lg mb-2" style={{ color: 'var(--text-tertiary)' }}>No cards or documents saved</p>
+              <button onClick={() => { setVaultType('card'); setShowModal(true); }} className="btn-primary text-sm">Add Card / Document</button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {cardDocItems.map((item, i) => (
+                <div key={item.id} className="stat-card group animate-fade-in-up" style={{ animationDelay: `${i * 80}ms` }}>
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: item.type === 'card' ? 'rgba(0,206,201,0.1)' : 'rgba(253,203,110,0.1)' }}>
+                        {item.type === 'card' ? <CreditCard size={18} style={{ color: '#00cec9' }} /> : <StickyNote size={18} style={{ color: '#fdcb6e' }} />}
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{item.title}</h3>
+                        <span className="badge badge-transfer text-xs">{item.type}</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <button onClick={() => toggleReveal(item.id)} className="btn-ghost p-1" title="Toggle visibility">
+                        {revealed[item.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                      <button onClick={() => handleDelete(item.id)} className="opacity-0 group-hover:opacity-100 btn-ghost p-1" style={{ color: 'var(--accent-danger)' }}>
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5 mt-3">
+                    {Object.entries(item.data || {}).map(([key, val]) => (
+                      <div key={key} className="flex justify-between text-xs">
+                        <span style={{ color: 'var(--text-tertiary)' }}>{key}</span>
+                        <span className="font-mono" style={{ color: 'var(--text-secondary)' }}>
+                          {revealed[item.id] ? val : mask(val as string)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -203,7 +285,7 @@ export default function VaultPage() {
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1.5" style={{ color: 'var(--text-secondary)' }}>Title</label>
-                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. SBI Savings" className="input-field" required id="vault-title" />
+                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Aadhaar Card, Mom's Account" className="input-field" required id="vault-title" />
               </div>
               {typeFields[vaultType].map(f => (
                 <div key={f}>

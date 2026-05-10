@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
 import ConfirmModal from '@/components/ConfirmModal';
@@ -17,6 +18,7 @@ export default function TransactionsPage() {
   
   const [showModal, setShowModal] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
+  const [selectedSection, setSelectedSection] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [txType, setTxType] = useState<TransactionType>('expense');
   const [amount, setAmount] = useState('');
@@ -121,12 +123,40 @@ export default function TransactionsPage() {
   const allTransactions = [...transactions, ...extraTransactions];
   const filtered = allTransactions.filter(tx => {
     if (filterType !== 'all' && tx.type !== filterType) return false;
+    if (selectedSection !== 'all' && tx.sectionId !== selectedSection) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return (tx.category?.toLowerCase().includes(q) || tx.note?.toLowerCase().includes(q) || tx.type.includes(q));
     }
     return true;
   });
+
+  // Compute running balance when a specific section is selected
+  const showRunningBalance = selectedSection !== 'all';
+  let filteredWithBalance: (Transaction & { runningBalance?: number })[] = filtered;
+  if (showRunningBalance) {
+    // Sort oldest first for running balance computation
+    const sorted = [...filtered].sort((a, b) => {
+      const da = a.date instanceof Date ? a.date : new Date(a.date);
+      const db = b.date instanceof Date ? b.date : new Date(b.date);
+      return da.getTime() - db.getTime();
+    });
+    let running = 0;
+    const withBal = sorted.map(tx => {
+      if (tx.type === 'income') running += tx.amount;
+      else if (tx.type === 'expense') running -= tx.amount;
+      else if (tx.type === 'transfer') {
+        if (tx.sectionId === selectedSection) running -= tx.amount;
+        else running += tx.amount;
+      } else if (tx.type === 'loan') {
+        if (tx.loanDirection === 'given') running -= tx.amount;
+        else running += tx.amount;
+      }
+      return { ...tx, runningBalance: running };
+    });
+    // Reverse back to newest first
+    filteredWithBalance = withBal.reverse();
+  }
 
   const txIcon = (type: string) => {
     if (type === 'income') return <ArrowUpRight size={16} style={{ color: 'var(--accent-success)' }} />;
@@ -155,9 +185,6 @@ export default function TransactionsPage() {
   const categories = txType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
   if (loading) return <div className="space-y-4">{[1,2,3,4,5].map(i => <div key={i} className="skeleton h-16 rounded-xl" />)}</div>;
-
-
-
 
   return (
     <>
@@ -196,6 +223,15 @@ export default function TransactionsPage() {
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }} />
           <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search transactions..." className="input-field pl-10 text-sm" id="tx-search" />
         </div>
+        <select
+          value={selectedSection}
+          onChange={e => setSelectedSection(e.target.value)}
+          className="input-field text-sm"
+          id="tx-section-filter"
+        >
+          <option value="all">All Sections</option>
+          {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
         <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--bg-surface)' }}>
           {['all', 'income', 'expense', 'transfer', 'loan'].map(t => (
             <button key={t} onClick={() => setFilterType(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium capitalize transition-all ${filterType === t ? 'text-white' : ''}`}
@@ -208,12 +244,12 @@ export default function TransactionsPage() {
 
       {/* Transaction List */}
       <div className="space-y-2">
-        {filtered.length === 0 ? (
+        {filteredWithBalance.length === 0 ? (
           <div className="text-center py-16 stat-card">
             <p className="text-lg mb-2" style={{ color: 'var(--text-tertiary)' }}>No transactions found</p>
             <button onClick={() => setShowModal(true)} className="btn-primary text-sm">Add your first transaction</button>
           </div>
-        ) : filtered.map(tx => {
+        ) : filteredWithBalance.map(tx => {
           const sec = sections.find(s => s.id === tx.sectionId);
           return (
             <div key={tx.id} className="flex items-center gap-4 p-4 rounded-xl transition-colors hover:border-[var(--border-default)] group"
@@ -224,10 +260,19 @@ export default function TransactionsPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{tx.category || tx.note || tx.type}</p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
-                  {sec?.name || 'Unknown'} · {formatDate(tx.date instanceof Date ? tx.date : new Date(tx.date))}
+                  <Link href={`/dashboard/ledger?section=${tx.sectionId}`} className="hover:underline"
+                    style={{ color: 'var(--accent-primary)' }}>
+                    {sec?.name || 'Unknown'}
+                  </Link>
+                  {' · '}{formatDate(tx.date instanceof Date ? tx.date : new Date(tx.date))}
                 </p>
               </div>
               <span className={`badge badge-${tx.type} text-xs`}>{tx.type}</span>
+              {showRunningBalance && tx.runningBalance !== undefined && (
+                <p className="text-xs font-medium min-w-[60px] text-right" style={{ color: tx.runningBalance >= 0 ? 'var(--text-secondary)' : 'var(--accent-danger)' }}>
+                  {formatCurrency(tx.runningBalance)}
+                </p>
+              )}
               <p className="text-sm font-bold min-w-[80px] text-right" style={{ color: tx.type === 'income' ? 'var(--accent-success)' : tx.type === 'expense' ? 'var(--accent-danger)' : 'var(--text-primary)' }}>
                 {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : ''}{formatCurrency(tx.amount)}
               </p>
@@ -350,7 +395,7 @@ export default function TransactionsPage() {
       )}
     </div>
 
-      {hasMore && !searchQuery && filterType === 'all' && (
+      {hasMore && !searchQuery && filterType === 'all' && selectedSection === 'all' && (
         <div className="flex justify-center pt-4 pb-2">
           <button
             onClick={loadMore}

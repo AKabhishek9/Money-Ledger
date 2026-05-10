@@ -1,17 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
 import ConfirmModal from '@/components/ConfirmModal';
 import { addPerson, deletePerson } from '@/lib/firestore';
-import { formatCurrency } from '@/lib/utils';
-import type { PersonType } from '@/lib/types';
-import { Plus, X, Trash2, UserCircle } from 'lucide-react';
+import { formatCurrency, formatDate } from '@/lib/utils';
+import type { PersonType, Transaction } from '@/lib/types';
+import { Plus, X, Trash2, UserCircle, ChevronDown, ChevronUp, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
 export default function PersonsPage() {
   const { user } = useAuth();
-  const { persons, loading, error, isError, refresh } = useData();
+  const { persons, transactions, loading, error, isError, refresh } = useData();
 
   const [showModal, setShowModal] = useState(false);
   const [name, setName] = useState('');
@@ -20,6 +20,7 @@ export default function PersonsPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [expandedPerson, setExpandedPerson] = useState<string | null>(null);
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,10 +53,25 @@ export default function PersonsPage() {
     }
   };
 
+  // Get loan transactions for a given person and compute running balance
+  const getPersonLedger = (personId: string) => {
+    const personTx = transactions.filter(tx => tx.personId === personId);
+    // Sort oldest first for running balance
+    const sorted = [...personTx].sort((a, b) => {
+      const da = a.date instanceof Date ? a.date : new Date(a.date);
+      const db = b.date instanceof Date ? b.date : new Date(b.date);
+      return da.getTime() - db.getTime();
+    });
+    let running = 0;
+    const withBalance = sorted.map(tx => {
+      if (tx.loanDirection === 'given') running += tx.amount; // they owe more
+      else running -= tx.amount; // they paid back
+      return { ...tx, runningBalance: running };
+    });
+    return withBalance.reverse(); // newest first
+  };
+
   if (loading) return <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{[1,2,3].map(i => <div key={i} className="skeleton h-32 rounded-xl" />)}</div>;
-
-
-
 
   const personsList = persons || [];
 
@@ -96,28 +112,110 @@ export default function PersonsPage() {
           <button onClick={() => setShowModal(true)} className="btn-primary text-sm">Add First Person</button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {personsList.map((p, i) => (
-            <div key={p.id} className="stat-card group animate-fade-in-up" style={{ animationDelay: `${i * 80}ms` }}>
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold"
-                  style={{ background: 'var(--gradient-primary)', color: '#fff' }}>
-                  {p.name[0].toUpperCase()}
+        <div className="space-y-4">
+          {personsList.map((p, i) => {
+            const isExpanded = expandedPerson === p.id;
+            const personLedger = isExpanded ? getPersonLedger(p.id) : [];
+            const previewTx = !isExpanded ? getPersonLedger(p.id).slice(0, 3) : [];
+
+            return (
+              <div key={p.id} className="stat-card group animate-fade-in-up" style={{ animationDelay: `${i * 80}ms` }}>
+                {/* Person Header */}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold"
+                      style={{ background: 'var(--gradient-primary)', color: '#fff' }}>
+                      {p.name[0].toUpperCase()}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{p.name}</h3>
+                      {p.note && <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{p.note}</p>}
+                      <span className={`badge ${p.type === 'self' ? 'badge-income' : p.type === 'managed' ? 'badge-transfer' : 'badge-loan'} mt-1`}>{p.type}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-lg font-bold" style={{ color: p.balance > 0 ? 'var(--accent-success)' : p.balance < 0 ? 'var(--accent-danger)' : 'var(--text-secondary)' }}>
+                      {p.balance > 0 ? 'Owes you ' : p.balance < 0 ? 'You owe ' : ''}{formatCurrency(Math.abs(p.balance))}
+                    </p>
+                    <button onClick={() => setConfirmDelete(p.id)} className="opacity-0 group-hover:opacity-100 transition-opacity btn-ghost p-1" style={{ color: 'var(--accent-danger)' }}>
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
-                <button onClick={() => setConfirmDelete(p.id)} className="opacity-0 group-hover:opacity-100 transition-opacity btn-ghost p-1" style={{ color: 'var(--accent-danger)' }}>
-                  <Trash2 size={16} />
-                </button>
+
+                {/* Preview: last 3 transactions (collapsed) */}
+                {!isExpanded && previewTx.length > 0 && (
+                  <div className="space-y-1.5 mt-3 mb-2">
+                    {previewTx.map(tx => (
+                      <div key={tx.id} className="flex items-center gap-2 text-xs">
+                        {tx.loanDirection === 'given'
+                          ? <ArrowUpRight size={12} style={{ color: 'var(--accent-danger)' }} />
+                          : <ArrowDownRight size={12} style={{ color: 'var(--accent-success)' }} />
+                        }
+                        <span className="flex-1 truncate" style={{ color: 'var(--text-tertiary)' }}>
+                          {tx.note || tx.category || (tx.loanDirection === 'given' ? 'Loan given' : 'Loan received')}
+                        </span>
+                        <span className="font-medium" style={{
+                          color: tx.loanDirection === 'given' ? 'var(--accent-danger)' : 'var(--accent-success)'
+                        }}>
+                          {tx.loanDirection === 'given' ? '-' : '+'}{formatCurrency(tx.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Expand/Collapse Button */}
+                {getPersonLedger(p.id).length > 0 && (
+                  <button
+                    onClick={() => setExpandedPerson(isExpanded ? null : p.id)}
+                    className="w-full flex items-center justify-center gap-1 py-2 mt-2 rounded-lg text-xs font-medium transition-colors"
+                    style={{ color: 'var(--accent-primary)', background: 'var(--bg-surface-hover)' }}
+                  >
+                    {isExpanded ? <><ChevronUp size={14} /> Hide History</> : <><ChevronDown size={14} /> View All History ({getPersonLedger(p.id).length})</>}
+                  </button>
+                )}
+
+                {/* Expanded Ledger */}
+                {isExpanded && personLedger.length > 0 && (
+                  <div className="mt-4 rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-subtle)' }}>
+                    <div className="grid grid-cols-[1fr_2fr_auto_auto] gap-3 px-4 py-2 text-xs font-semibold uppercase tracking-wider"
+                      style={{ color: 'var(--text-tertiary)', background: 'var(--bg-surface-hover)' }}>
+                      <span>Date</span>
+                      <span>Note</span>
+                      <span className="text-right">Amount</span>
+                      <span className="text-right">Balance</span>
+                    </div>
+                    <div className="divide-y" style={{ borderColor: 'var(--border-subtle)' }}>
+                      {personLedger.map(tx => {
+                        const txDate = tx.date instanceof Date ? tx.date : new Date(tx.date);
+                        return (
+                          <div key={tx.id} className="grid grid-cols-[1fr_2fr_auto_auto] gap-3 px-4 py-3 text-xs items-center hover:bg-[var(--bg-surface-hover)] transition-colors">
+                            <span style={{ color: 'var(--text-primary)' }}>
+                              {txDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                            </span>
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              {tx.note || tx.category || (tx.loanDirection === 'given' ? 'Loan given' : 'Loan received')}
+                            </span>
+                            <span className="text-right font-medium" style={{
+                              color: tx.loanDirection === 'given' ? 'var(--accent-danger)' : 'var(--accent-success)'
+                            }}>
+                              {tx.loanDirection === 'given' ? '-' : '+'}{formatCurrency(tx.amount)}
+                            </span>
+                            <span className="text-right font-bold" style={{
+                              color: tx.runningBalance > 0 ? 'var(--accent-success)' : tx.runningBalance < 0 ? 'var(--accent-danger)' : 'var(--text-secondary)'
+                            }}>
+                              {formatCurrency(Math.abs(tx.runningBalance))}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
-              <h3 className="text-base font-semibold" style={{ color: 'var(--text-primary)' }}>{p.name}</h3>
-              {p.note && <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>{p.note}</p>}
-              <div className="flex items-center justify-between mt-3">
-                <span className={`badge ${p.type === 'self' ? 'badge-income' : p.type === 'managed' ? 'badge-transfer' : 'badge-loan'}`}>{p.type}</span>
-                <p className="text-lg font-bold" style={{ color: p.balance > 0 ? 'var(--accent-success)' : p.balance < 0 ? 'var(--accent-danger)' : 'var(--text-secondary)' }}>
-                  {p.balance > 0 ? 'Owes you ' : p.balance < 0 ? 'You owe ' : ''}{formatCurrency(Math.abs(p.balance))}
-                </p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

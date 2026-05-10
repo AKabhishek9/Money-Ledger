@@ -1,12 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
 import ConfirmModal from '@/components/ConfirmModal';
 import { addSection, deleteSection } from '@/lib/firestore';
 import { formatCurrency, getRandomColor } from '@/lib/utils';
-import { Plus, X, Trash2, Wallet } from 'lucide-react';
+import { Plus, X, Trash2, Wallet, ChevronRight } from 'lucide-react';
 
 export default function SectionsPage() {
   const { user } = useAuth();
@@ -52,9 +53,6 @@ export default function SectionsPage() {
 
   if (loading) return <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">{[1,2,3,4].map(i => <div key={i} className="skeleton h-36 rounded-xl" />)}</div>;
 
-
-
-
   const sectionsList = sections || [];
 
   return (
@@ -88,25 +86,34 @@ export default function SectionsPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {sectionsList.map((sec, i) => (
-          <div key={sec.id} className="stat-card group animate-fade-in-up" style={{ animationDelay: `${i * 80}ms` }}>
-            <div className="flex items-start justify-between mb-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: `${sec.color}20` }}>
-                <Wallet size={22} style={{ color: sec.color }} />
+          <Link
+            key={sec.id}
+            href={`/dashboard/ledger?section=${sec.id}`}
+            className="no-underline block"
+          >
+            <div className="stat-card group animate-fade-in-up relative" style={{ animationDelay: `${i * 80}ms` }}>
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: `${sec.color}20` }}>
+                  <Wallet size={22} style={{ color: sec.color }} />
+                </div>
+                <div className="flex items-center gap-1">
+                  {sec.type === 'custom' && (
+                    <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); setConfirmDelete({ id: sec.id, type: sec.type }); }} className="opacity-0 group-hover:opacity-100 transition-opacity btn-ghost p-1" style={{ color: 'var(--accent-danger)' }}>
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                  <ChevronRight size={16} className="opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-tertiary)' }} />
+                </div>
               </div>
-              {sec.type === 'custom' && (
-                <button onClick={() => { if (sec.type === 'default') return; setConfirmDelete({ id: sec.id, type: sec.type }); }} className="opacity-0 group-hover:opacity-100 transition-opacity btn-ghost p-1" style={{ color: 'var(--accent-danger)' }}>
-                  <Trash2 size={16} />
-                </button>
-              )}
+              <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{sec.name}</h3>
+              <p className="text-2xl font-bold" style={{ color: sec.balance >= 0 ? sec.color : 'var(--accent-danger)' }}>
+                {formatCurrency(sec.balance)}
+              </p>
+              <div className="mt-3 flex items-center gap-2">
+                <span className={`badge ${sec.type === 'default' ? 'badge-transfer' : 'badge-income'}`}>{sec.type}</span>
+              </div>
             </div>
-            <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{sec.name}</h3>
-            <p className="text-2xl font-bold" style={{ color: sec.balance >= 0 ? sec.color : 'var(--accent-danger)' }}>
-              {formatCurrency(sec.balance)}
-            </p>
-            <div className="mt-3 flex items-center gap-2">
-              <span className={`badge ${sec.type === 'default' ? 'badge-transfer' : 'badge-income'}`}>{sec.type}</span>
-            </div>
-          </div>
+          </Link>
         ))}
       </div>
 
