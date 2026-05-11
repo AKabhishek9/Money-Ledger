@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Send, UserRound, X } from 'lucide-react';
 import { parseEntry, formatAmount } from '@/lib/parser';
 import type { Person } from '@/lib/types';
@@ -27,10 +27,43 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
   const [linkedPerson, setLinkedPerson] = useState<Person | null>(null);
   const [showPersonPicker, setShowPersonPicker] = useState(false);
   const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const combined = `${amountInput} ${noteInput}`.trim();
   const parsed = combined ? parseEntry(combined) : null;
+
+  // ── Keyboard detection via VisualViewport API ──
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+
+    const initialHeight = vv.height;
+
+    const handleResize = () => {
+      const diff = initialHeight - vv.height;
+      // If viewport shrank by more than 100px, keyboard is open
+      if (diff > 100) {
+        setKeyboardOpen(true);
+        setKeyboardHeight(diff);
+      } else {
+        setKeyboardOpen(false);
+        setKeyboardHeight(0);
+      }
+    };
+
+    vv.addEventListener('resize', handleResize);
+    return () => vv.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Dispatch a custom event so BottomNav can hide itself
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent('keyboard-toggle', { detail: { open: keyboardOpen } })
+    );
+  }, [keyboardOpen]);
 
   const handleSubmit = useCallback(async () => {
     if (!combined || loading) return;
@@ -49,7 +82,7 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
     } finally {
       setLoading(false);
     }
-  }, [combined, loading, linkedPerson, onAdd]);
+  }, [combined, loading, linkedPerson, onAdd, entryDate]);
 
   const handleKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSubmit();
@@ -59,7 +92,15 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
   const isExpense = parsed?.isValid && parsed.amount < 0;
 
   return (
-    <div className="safe-bottom z-20 px-3 pb-3 pt-2" style={{ background: 'var(--color-nav)' }}>
+    <div
+      ref={containerRef}
+      className="z-20 px-3 pb-3 pt-2"
+      style={{
+        background: 'var(--color-nav)',
+        // When keyboard is open, add safe-area padding at the bottom
+        paddingBottom: keyboardOpen ? 8 : undefined,
+      }}
+    >
       {/* Preview */}
       {parsed?.isValid && (
         <div

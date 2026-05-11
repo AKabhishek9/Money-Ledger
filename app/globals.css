@@ -249,93 +249,38 @@ input[type='date']::-webkit-calendar-picker-indicator {
   color: var(--color-text-dim);
 }
 
-/* ── Money Loader (3D tower) ── */
-.money-loader-screen,
-.money-loader-inline {
+/* ── Concentric Spinner Rings ── */
+.spinner-ring {
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  gap: 18px;
+  align-items: center;
+  border: 3px solid transparent;
+  border-top-color: var(--color-accent);
+  border-right-color: var(--color-accent);
+  border-radius: 50%;
 }
 
-.money-loader-screen {
-  min-height: 100dvh;
-  background: var(--color-bg);
+.spinner-outer {
+  width: 56px;
+  height: 56px;
+  animation: spin 2.5s linear infinite;
 }
 
-.money-loader-inline {
-  padding: 48px 0;
+.spinner-mid {
+  width: 38px;
+  height: 38px;
+  border-top-color: var(--color-text-muted);
+  border-right-color: var(--color-text-muted);
+  animation: spin 4s linear infinite;
 }
 
-.money-loader {
-  position: relative;
-  width: 40px;
-  height: 50px;
-  transform: scale(1.85);
-  transform-origin: center;
-}
-
-.money-loader-box {
-  position: relative;
-  opacity: 0;
-  left: 10px;
-}
-
-.money-loader-side-left {
-  position: absolute;
-  background-color: #242424;
-  width: 19px;
-  height: 5px;
-  transform: skew(0deg, -25deg);
-  top: 14px;
-  left: 10px;
-}
-
-.money-loader-side-right {
-  position: absolute;
-  background-color: #3A3A3A;
-  width: 19px;
-  height: 5px;
-  transform: skew(0deg, 25deg);
-  top: 14px;
-  left: -9px;
-}
-
-.money-loader-side-top {
-  position: absolute;
-  background-color: #E27500;
+.spinner-inner {
   width: 20px;
   height: 20px;
-  rotate: 45deg;
-  transform: skew(-20deg, -20deg);
+  animation: spin 3s linear infinite;
 }
 
-.money-loader-box-1 { animation: money-loader-from-left  4s infinite; }
-.money-loader-box-2 { animation: money-loader-from-right 4s infinite; animation-delay: 1s; }
-.money-loader-box-3 { animation: money-loader-from-left  4s infinite; animation-delay: 2s; }
-.money-loader-box-4 { animation: money-loader-from-right 4s infinite; animation-delay: 3s; }
-
-.money-loader-label {
-  margin-top: 10px;
-  color: var(--color-text-muted);
-  font-size: 0.8rem;
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
-@keyframes money-loader-from-left {
-  0%   { z-index: 20; opacity: 0; translate: -20px -6px; }
-  20%  { z-index: 10; opacity: 1; translate: 0 0; }
-  40%  { z-index: 9;              translate: 0 4px; }
-  60%  { z-index: 8;              translate: 0 8px; }
-  80%  { z-index: 7;  opacity: 1; translate: 0 12px; }
-  100% { z-index: 5;  opacity: 0; translate: 0 30px; }
-}
-
-@keyframes money-loader-from-right {
-  0%   { z-index: 20; opacity: 0; translate: 20px -6px; }
-  20%  { z-index: 10; opacity: 1; translate: 0 0; }
-  40%  { z-index: 9;              translate: 0 4px; }
-  60%  { z-index: 8;              translate: 0 8px; }
-  80%  { z-index: 7;  opacity: 1; translate: 0 12px; }
-  100% { z-index: 5;  opacity: 0; translate: 0 30px; }
-}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { BookOpen, Users, Shield, Search, MoreHorizontal } from 'lucide-react';
 
@@ -51,10 +51,21 @@ interface BottomNavProps {
 export default function BottomNav({ onMoreClick }: BottomNavProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
 
   useEffect(() => {
     NAV_ITEMS.filter((item) => item.label !== 'More').forEach((item) => router.prefetch(item.href));
   }, [router]);
+
+  // Listen for keyboard-toggle custom event from EntryInput
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setKeyboardOpen(detail?.open ?? false);
+    };
+    window.addEventListener('keyboard-toggle', handler);
+    return () => window.removeEventListener('keyboard-toggle', handler);
+  }, []);
 
   const isActive = (item: NavItem) =>
     item.match.some((m) => pathname === m || pathname.startsWith(m + '?'));
@@ -63,11 +74,12 @@ export default function BottomNav({ onMoreClick }: BottomNavProps) {
     if (item.label === 'More' && onMoreClick) {
       onMoreClick();
     } else {
-      // Even if pathname matches, we might have query params (like ?w=...)
-      // so we should push to clear them if the user clicks the nav item again
       router.push(item.href);
     }
   };
+
+  // Hide the nav completely when the mobile keyboard is open
+  if (keyboardOpen) return null;
 
   return (
     <nav
