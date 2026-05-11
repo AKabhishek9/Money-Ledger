@@ -2,47 +2,47 @@
 
 @theme {
   /*
-   * Money Ledger — Ink wash (paper + ink + slate accent)
-   * Palette: #FFFFE3 paper · #4A4A4A ink · #CBCBCB mist (borders) · #6D8196 accent
-   * Note: #CBCBCB is for borders/dividers only — body “muted” text uses darker tones for WCAG contrast on cream.
+   * Money Ledger — Earthy Slate (Deep Charcoal + Terra Cotta accent)
+   * Palette: #3C3F41 bg · #E8E8E8 text · #AC4938 accent
+   * A "Darker Side" aesthetic that avoids pure black for a premium, muted feel.
    */
-  --color-bg: #ffffe3;
-  --color-surface: #f5f5ea;
-  --color-surface-2: #ebebdd;
-  --color-surface-3: #e0e0ce;
-  --color-border: #cbcbcb;
-  --color-border-2: #b6b6ae;
+  --color-bg: #3c3f41;
+  --color-surface: #4a4d4f;
+  --color-surface-2: #545759;
+  --color-surface-3: #626567;
+  --color-border: #6d7072;
+  --color-border-2: #808385;
 
-  --color-text: #4a4a4a;
-  --color-text-muted: #555f6d;
-  --color-text-dim: #697888;
+  --color-text: #e8e8e8;
+  --color-text-muted: #b0b3b5;
+  --color-text-dim: #909395;
 
-  --color-income: #1f6b52;
-  --color-income-bg: #d6ebe1;
-  --color-expense: #9c3838;
-  --color-expense-bg: #f3dede;
+  --color-income: #81c784;
+  --color-income-bg: rgba(129, 199, 132, 0.12);
+  --color-expense: #e57373;
+  --color-expense-bg: rgba(229, 115, 115, 0.12);
 
-  --color-accent: #6d8196;
-  --color-accent-2: #5a6d82;
-  --color-accent-bg: #e2e8ee;
+  --color-accent: #ac4938;
+  --color-accent-2: #c15b49;
+  --color-accent-bg: rgba(172, 73, 56, 0.15);
 
-  --color-gold: #9a7b2c;
-  --color-gold-bg: #f3ead1;
+  --color-gold: #ffd54f;
+  --color-gold-bg: rgba(255, 213, 79, 0.1);
 
-  --color-nav: #efefe3;
+  --color-nav: #323537;
   /* Text/icons on filled accent or expense primary buttons */
-  --color-on-accent: #ffffe3;
+  --color-on-accent: #ffffff;
 
-  /* Elevation + motion tokens (UI only) */
-  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.75) inset, 0 4px 16px rgba(74, 74, 74, 0.1);
-  --shadow-card-sm: 0 1px 0 rgba(255, 255, 255, 0.65) inset, 0 1px 5px rgba(74, 74, 74, 0.07);
-  --radius-card: 1rem;
+  /* Elevation + motion tokens (Refined for dark surfaces) */
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.25);
+  --shadow-card-sm: 0 2px 8px rgba(0, 0, 0, 0.15);
+  --radius-card: 1.25rem;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 160ms;
-  --duration-panel: 200ms;
+  --duration-panel: 220ms;
 
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-sans: 'Outfit', 'Inter', system-ui, sans-serif;
 }
 
 :root {
@@ -231,10 +231,10 @@ input[type='number'] {
   -moz-appearance: textfield;
 }
 
-/* Glass card — light frosted panel */
+/* Glass card — dark translucent panel */
 .glass {
-  background: rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(10px);
+  background: rgba(50, 53, 55, 0.72);
+  backdrop-filter: blur(16px);
   border: 1px solid var(--color-border);
 }
 
@@ -273,7 +273,7 @@ input[type='number'] {
 
 .money-loader-side-left {
   position: absolute;
-  background-color: #5a6d82;
+  background-color: #763023; /* Deep Mahogany */
   width: 19px;
   height: 5px;
   transform: skew(0deg, -25deg);
@@ -283,7 +283,7 @@ input[type='number'] {
 
 .money-loader-side-right {
   position: absolute;
-  background-color: #6d8196;
+  background-color: #ac4938; /* Terra Cotta */
   width: 19px;
   height: 5px;
   transform: skew(0deg, 25deg);
@@ -293,7 +293,7 @@ input[type='number'] {
 
 .money-loader-side-top {
   position: absolute;
-  background-color: #8a9cb0;
+  background-color: #c15b49; /* Light Terra Cotta */
   width: 20px;
   height: 20px;
   rotate: 45deg;
