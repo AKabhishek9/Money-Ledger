@@ -21,12 +21,16 @@ const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(firebas
 const auth: Auth = getAuth(app);
 
 // Offline-first: Firestore with persistent local cache
+// experimentalAutoDetectLongPolling bypasses ad blockers that block
+// Firestore's WebSocket channels to googleapis.com — it auto-falls
+// back to standard HTTP long-polling which is unblockable.
 const db: Firestore = (() => {
   try {
     return initializeFirestore(app, {
       localCache: persistentLocalCache({
         tabManager: persistentMultipleTabManager(),
       }),
+      experimentalAutoDetectLongPolling: true,
     });
   } catch {
     return getFirestore(app);
