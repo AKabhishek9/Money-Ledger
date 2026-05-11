@@ -28,7 +28,7 @@ export default function WindowCard({
 
   return (
     <div
-      className={`surface-card relative mx-4 mb-3 overflow-hidden rounded-2xl transition-shadow duration-200 ${showMenu ? 'z-20' : ''}`}
+      className={`surface-card relative mx-4 mb-3 rounded-2xl transition-shadow duration-200 ${showMenu ? 'z-30' : ''}`}
       style={{
         background: 'var(--color-surface)',
         border: `1px solid ${w.pinned ? 'color-mix(in oklab, var(--color-accent) 45%, var(--color-border))' : 'var(--color-border)'}`,
@@ -101,7 +101,7 @@ export default function WindowCard({
       {/* Dropdown menu */}
       {showMenu && (
         <div
-          className="animate-scale-in absolute right-2 top-12 z-20 overflow-hidden rounded-xl shadow-lg"
+          className="animate-scale-in absolute right-2 top-12 z-[60] rounded-xl shadow-lg"
           style={{
             background: 'var(--color-surface-2)',
             border: '1px solid var(--color-border)',
@@ -135,7 +135,7 @@ export default function WindowCard({
       )}
 
       {showMenu && (
-        <div className="fixed inset-0 z-10" aria-hidden onClick={() => setShowMenu(false)} />
+        <div className="fixed inset-0 z-50 bg-black/20" aria-hidden onClick={() => setShowMenu(false)} />
       )}
     </div>
   );

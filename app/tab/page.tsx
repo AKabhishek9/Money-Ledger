@@ -147,7 +147,7 @@ function TabContent() {
   // ── Window detail view ──
   if (selectedWindow) {
     return (
-      <div className="flex flex-col h-[100dvh] overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <Header
           title={selectedWindow.title}
           subtitle={tab?.name}

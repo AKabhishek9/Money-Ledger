@@ -39,6 +39,11 @@
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
+:root {
+  /* Fixed BottomNav — reserve space in scroll/layout so entry input stays above the bar */
+  --app-bottom-nav-pad: calc(5.75rem + env(safe-area-inset-bottom, 0px));
+}
+
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;

@@ -8,8 +8,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [showMore, setShowMore] = useState(false);
 
   return (
-    <div className="flex flex-col h-[100dvh] overflow-hidden" style={{ background: 'var(--color-bg)' }}>
-      <main className="flex-1 overflow-hidden relative flex flex-col">
+    <div className="flex h-[100dvh] flex-col overflow-hidden" style={{ background: 'var(--color-bg)' }}>
+      <main
+        className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
+        style={{ paddingBottom: 'var(--app-bottom-nav-pad)' }}
+      >
         {children}
       </main>
       <BottomNav onMoreClick={() => setShowMore(true)} />

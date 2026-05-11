@@ -82,7 +82,7 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
   const displayedEntries = [...entriesWithBalance].reverse();
 
   return (
-    <div className="flex flex-col h-[100dvh] overflow-hidden">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
       {/* Balance header — chat profile strip */}
       <div className="surface-card shrink-0 px-4 py-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
         <div className="mb-3 flex items-start justify-between gap-3">
