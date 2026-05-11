@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Shield, Lock } from 'lucide-react';
 import AuthGuard from '@/components/auth/AuthGuard';
 import AppLayout from '@/components/layout/AppLayout';
 import Header from '@/components/layout/Header';
@@ -91,75 +91,100 @@ function VaultContent() {
     : items;
 
   return (
-    <div>
+    <div className="flex flex-col h-full overflow-hidden">
       <Header
-        title="Vault"
-        subtitle="Secure information storage"
+        title="Secure Information Vault"
         rightAction={
           <button
             onClick={() => setShowForm(true)}
-            className="p-2 rounded-xl"
-            style={{ background: 'var(--color-surface-2)', color: 'var(--color-accent)' }}
+            className="flex h-10 w-10 items-center justify-center rounded-full"
+            style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
           >
             <Plus size={20} />
           </button>
         }
+        showBack
       />
 
-      {/* Security notice */}
-      <div
-        className="mx-4 mt-4 mb-3 p-3 rounded-xl flex items-center gap-2"
-        style={{ background: 'var(--color-gold-bg)', border: '1px solid var(--color-gold)' }}
-      >
-        <span>🔒</span>
-        <p className="text-xs" style={{ color: 'var(--color-gold)' }}>
-          Vault items are stored in your private account. Tap to expand and reveal.
-        </p>
-      </div>
-
-      {/* Search bar */}
-      {items.length > 3 && (
-        <div className="px-4 mb-3">
+      <div className="flex-1 overflow-y-auto pb-24">
+        {/* Security notice card */}
+        <div className="px-4 pt-4 pb-2">
           <div
-            className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
-            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+            className="flex items-center gap-3 rounded-2xl p-4"
+            style={{
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border-2)',
+              boxShadow: 'var(--shadow-card-sm)',
+            }}
           >
-            <Search size={15} style={{ color: 'var(--color-text-muted)' }} />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search vault…"
-              className="flex-1 text-sm outline-none bg-transparent"
-              style={{ color: 'var(--color-text)' }}
-            />
+            <div
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+              style={{ background: 'var(--color-gold-bg)' }}
+            >
+              <Shield size={20} style={{ color: 'var(--color-gold)' }} />
+            </div>
+            <p className="text-[0.8125rem] leading-snug" style={{ color: 'var(--color-text-muted)' }}>
+              Vault items are encrypted and stored securely in your private account. Only you can access them.
+            </p>
           </div>
         </div>
-      )}
 
-      {loading ? (
-        <Loader label="Loading vault..." />
-      ) : filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
-          <div className="text-5xl mb-4">🔐</div>
-          <p className="font-semibold text-base mb-1" style={{ color: 'var(--color-text)' }}>
-            {search ? 'No matches' : 'Vault is empty'}
-          </p>
-          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
-            {search ? 'Try a different search' : 'Store bank details, cards, and secure notes'}
-          </p>
-        </div>
-      ) : (
-        <div className="pt-2">
-          {filtered.map((item) => (
-            <VaultCard
-              key={item.id}
-              item={item}
-              onDelete={() => setDeleteTarget(item)}
-            />
-          ))}
-        </div>
-      )}
+        {/* Search bar */}
+        {items.length > 3 && (
+          <div className="px-4 mb-3">
+            <div
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
+              style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+            >
+              <Search size={15} style={{ color: 'var(--color-text-muted)' }} />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search vault…"
+                className="flex-1 text-sm outline-none bg-transparent"
+                style={{ color: 'var(--color-text)' }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Section header */}
+        {filtered.length > 0 && (
+          <div className="px-4 pt-2 pb-1">
+            <p className="text-balance-label">Your Secure Items</p>
+          </div>
+        )}
+
+        {loading ? (
+          <Loader label="Loading vault..." />
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+            <div
+              className="flex h-16 w-16 items-center justify-center rounded-2xl mb-4"
+              style={{ background: 'var(--color-surface-2)' }}
+            >
+              <Lock size={28} style={{ color: 'var(--color-text-dim)' }} />
+            </div>
+            <p className="font-semibold text-base mb-1" style={{ color: 'var(--color-text)' }}>
+              {search ? 'No matches' : 'Vault is empty'}
+            </p>
+            <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+              {search ? 'Try a different search' : 'Store bank details, cards, and secure notes'}
+            </p>
+          </div>
+        ) : (
+          <div className="pt-1">
+            {filtered.map((item) => (
+              <VaultCard
+                key={item.id}
+                item={item}
+                onDelete={() => setDeleteTarget(item)}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {showForm && (
         <VaultForm

@@ -1,172 +1,159 @@
 'use client';
 
-import { Pin, Archive, Trash2, MoreVertical, BookOpen } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Calendar, MoreVertical, Pin, Archive, Trash2, Pencil } from 'lucide-react';
+import { formatAmount } from '@/lib/parser';
 import type { MoneyWindow } from '@/lib/types';
-import { useState } from 'react';
 
 interface WindowCardProps {
   window: MoneyWindow;
-  total?: number;
-  entryCount?: number;
+  total: number;
+  entryCount: number;
   onClick: () => void;
-  onPin?: () => void;
-  onArchive?: () => void;
-  onDelete?: () => void;
-  onRename?: () => void;
+  onPin: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+  onRename: () => void;
 }
 
 export default function WindowCard({
   window: w,
-  total = 0,
-  entryCount = 0,
+  total,
+  entryCount,
   onClick,
   onPin,
   onArchive,
   onDelete,
   onRename,
 }: WindowCardProps) {
-  const [showMenu, setShowMenu] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const isPositive = total >= 0;
 
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [menuOpen]);
+
   return (
-    <div
-      className={`surface-card relative mx-4 mb-3 rounded-2xl transition-shadow duration-200 ${showMenu ? 'z-30' : ''}`}
-      style={{
-        background: 'var(--color-surface)',
-        border: `1px solid ${w.pinned ? 'color-mix(in oklab, var(--color-accent) 45%, var(--color-border))' : 'var(--color-border)'}`,
-      }}
-    >
+    <div className="mx-4 mb-3 relative">
       <button
         type="button"
-        className="flex w-full items-center gap-3 p-4 text-left transition-[transform,opacity] duration-150 active:scale-[0.995] active:opacity-90"
         onClick={onClick}
+        className="flex w-full items-center gap-3.5 rounded-2xl px-4 py-3.5 text-left transition-all duration-200 active:opacity-90"
+        style={{
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          boxShadow: 'var(--shadow-card-sm)',
+        }}
       >
         {/* Icon */}
         <div
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
           style={{ background: 'var(--color-surface-2)' }}
         >
-          {w.autoMonthly ? (
-            <span className="text-lg leading-none" aria-hidden>
-              📅
-            </span>
-          ) : (
-            <BookOpen size={18} strokeWidth={2} style={{ color: 'var(--color-accent)' }} />
-          )}
+          <Calendar size={18} style={{ color: 'var(--color-accent)' }} />
         </div>
 
-        {/* Info */}
+        {/* Title + count */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate text-sm font-semibold tracking-tight" style={{ color: 'var(--color-text)' }}>
-              {w.title}
-            </span>
-            {w.pinned && <Pin size={12} strokeWidth={2} style={{ color: 'var(--color-accent)', flexShrink: 0 }} />}
-          </div>
-          <span className="mt-1 block text-[0.6875rem] leading-none" style={{ color: 'var(--color-text-muted)' }}>
+          <p className="truncate text-[0.9375rem] font-semibold leading-tight tracking-tight" style={{ color: 'var(--color-text)' }}>
+            {w.pinned && <span style={{ color: 'var(--color-gold)' }}>📌 </span>}
+            {w.title}
+          </p>
+          <p className="mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
             {entryCount} {entryCount === 1 ? 'entry' : 'entries'}
-          </span>
+          </p>
         </div>
 
-        {/* Total */}
-        <div className="shrink-0 pr-10 text-right">
-          <div
-            className="amount-mono text-lg font-bold leading-none"
+        {/* Amount */}
+        <div className="shrink-0 text-right">
+          <span
+            className="amount-mono text-base font-semibold tabular-nums"
             style={{ color: isPositive ? 'var(--color-income)' : 'var(--color-expense)' }}
           >
-            {isPositive ? '+' : ''}₹{Math.abs(total).toLocaleString('en-IN')}
-          </div>
-          <span className="mt-1 block text-[0.625rem] font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-dim)' }}>
-            Total
+            {formatAmount(total)}
           </span>
         </div>
       </button>
 
-      {/* Menu button */}
-      <button
-        type="button"
-        className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-xl transition-colors duration-150"
-        style={{
-          background: showMenu ? 'var(--color-surface-2)' : 'transparent',
-          color: 'var(--color-text-muted)',
-        }}
-        aria-expanded={showMenu}
-        aria-label="Page actions"
-        onClick={(e) => {
-          e.stopPropagation();
-          setShowMenu(!showMenu);
-        }}
-      >
-        <MoreVertical size={18} strokeWidth={2} />
-      </button>
-
-      {/* Dropdown menu */}
-      {showMenu && (
-        <div
-          className="animate-scale-in absolute right-2 top-12 z-[60] rounded-xl shadow-lg"
-          style={{
-            background: 'var(--color-surface-2)',
-            border: '1px solid var(--color-border)',
-            minWidth: 140,
+      {/* 3-dot menu */}
+      <div className="absolute right-2 top-2" ref={menuRef}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen(!menuOpen);
           }}
-          onClick={(e) => e.stopPropagation()}
+          className="flex h-9 w-9 items-center justify-center rounded-xl transition-opacity active:opacity-70"
+          style={{ color: 'var(--color-text-dim)' }}
+          aria-label="More options"
         >
-          {onPin && (
-            <MenuBtn
-              icon={<Pin size={14} />}
-              label={w.pinned ? 'Unpin' : 'Pin'}
-              onClick={() => { setShowMenu(false); onPin(); }}
+          <MoreVertical size={16} />
+        </button>
+
+        {menuOpen && (
+          <div
+            className="absolute right-0 top-10 z-30 animate-fade-in overflow-hidden rounded-xl py-1"
+            style={{
+              background: 'var(--color-surface-2)',
+              border: '1px solid var(--color-border-2)',
+              boxShadow: 'var(--shadow-card)',
+              minWidth: 160,
+            }}
+          >
+            <MenuItem
+              icon={<Pencil size={14} />}
+              label="Rename"
+              onClick={() => { setMenuOpen(false); onRename(); }}
             />
-          )}
-          {onArchive && (
-            <MenuBtn
+            <MenuItem
+              icon={<Pin size={14} />}
+              label={w.pinned ? 'Unpin' : 'Pin to top'}
+              onClick={() => { setMenuOpen(false); onPin(); }}
+            />
+            <MenuItem
               icon={<Archive size={14} />}
               label="Archive"
-              onClick={() => { setShowMenu(false); onArchive(); }}
+              onClick={() => { setMenuOpen(false); onArchive(); }}
             />
-          )}
-          {onRename && (
-            <MenuBtn
-              icon={<BookOpen size={14} />}
-              label="Rename"
-              onClick={() => { setShowMenu(false); onRename(); }}
-            />
-          )}
-          {onDelete && (
-            <MenuBtn
+            <MenuItem
               icon={<Trash2 size={14} />}
               label="Delete"
               danger
-              onClick={() => { setShowMenu(false); onDelete(); }}
+              onClick={() => { setMenuOpen(false); onDelete(); }}
             />
-          )}
-        </div>
-      )}
-
-      {showMenu && (
-        <div className="fixed inset-0 z-50" style={{ background: 'var(--color-overlay-scrim)' }} aria-hidden onClick={() => setShowMenu(false)} />
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
-function MenuBtn({
+function MenuItem({
   icon,
   label,
-  danger,
   onClick,
+  danger,
 }: {
   icon: React.ReactNode;
   label: string;
-  danger?: boolean;
   onClick: () => void;
+  danger?: boolean;
 }) {
   return (
     <button
       type="button"
-      className="flex w-full items-center gap-2 px-3 py-3 text-left text-sm font-medium transition-colors duration-150 active:bg-[var(--color-surface-3)]"
-      style={{ color: danger ? 'var(--color-expense)' : 'var(--color-text)' }}
       onClick={onClick}
+      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[0.8125rem] font-medium transition-opacity active:opacity-80"
+      style={{
+        color: danger ? 'var(--color-expense)' : 'var(--color-text)',
+      }}
     >
       {icon}
       {label}

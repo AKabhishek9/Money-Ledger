@@ -2,7 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import AuthGuard from '@/components/auth/AuthGuard';
 import AppLayout from '@/components/layout/AppLayout';
 import Header from '@/components/layout/Header';
@@ -15,7 +15,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ensureSystemData } from '@/lib/bootstrap';
 import { getDb } from '@/lib/db';
 import { localGetEntries } from '@/lib/entries';
-import { getMonthKey, getMonthWindowTitle } from '@/lib/utils';
 import { useStore } from '@/store/useStore';
 import type { Tab, MoneyWindow } from '@/lib/types';
 import { Archive } from 'lucide-react';
@@ -171,10 +170,10 @@ function PersonalContent() {
                 updateWindowStore(selectedWindow.id, { archived: true });
                 router.push('/personal');
               }}
-              className="p-2 rounded-xl"
+              className="flex h-10 w-10 items-center justify-center rounded-full"
               style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}
             >
-              <Archive size={20} />
+              <Trash2 size={18} />
             </button>
           }
         />
@@ -197,18 +196,18 @@ function PersonalContent() {
         title="Personal"
         subtitle="Your accounting notebook"
         rightAction={
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => router.push('/archive')}
-              className="p-2 rounded-xl"
+              className="flex h-10 w-10 items-center justify-center rounded-full"
               style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}
             >
-              <Archive size={20} />
+              <Archive size={18} />
             </button>
             <button
               onClick={() => setShowAddSheet(true)}
-              className="p-2 rounded-xl"
-              style={{ background: 'var(--color-surface-2)', color: 'var(--color-accent)' }}
+              className="flex h-10 w-10 items-center justify-center rounded-full"
+              style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
             >
               <Plus size={20} />
             </button>

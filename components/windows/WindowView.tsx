@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Download } from 'lucide-react';
 import type { Entry, MoneyWindow, Person } from '@/lib/types';
 import {
@@ -18,7 +18,7 @@ import { exportWindowToPDF } from '@/lib/pdf';
 import EntryInput from '@/components/entry/EntryInput';
 import EntryItem from '@/components/entry/EntryItem';
 import EditEntrySheet from './EditEntrySheet';
-import { useRef } from 'react';
+
 
 interface WindowViewProps {
   window: MoneyWindow;
@@ -124,6 +124,8 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
 
   const total = calcTotal(entries.map((e) => e.amount));
   const isPositive = total >= 0;
+  const incomeTotal = calcTotal(entries.filter((e) => e.amount > 0).map((e) => e.amount));
+  const expenseTotal = calcTotal(entries.filter((e) => e.amount < 0).map((e) => e.amount));
   const entriesWithBalance = computeRunningBalance(entries);
 
   // Group entries by date label
@@ -136,53 +138,62 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* Totals bar — compact summary, thumb-friendly export */}
-      <div className="surface-card shrink-0 px-4 py-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-balance-label mb-1">Total balance</p>
-            <p
-              className="amount-mono truncate text-[1.75rem] font-bold leading-none tracking-tight sm:text-[2rem]"
-              style={{ color: isPositive ? 'var(--color-income)' : 'var(--color-expense)' }}
-            >
-              {formatAmount(total)}
-            </p>
+      {/* Summary card */}
+      <div className="shrink-0 px-4 pt-4 pb-2">
+        <div
+          className="rounded-2xl p-4"
+          style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border-2)',
+            boxShadow: 'var(--shadow-card)',
+          }}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-balance-label mb-1.5">Total Balance</p>
+              <p
+                className="amount-mono truncate text-[1.85rem] font-bold leading-none tracking-tight"
+                style={{ color: isPositive ? 'var(--color-income)' : 'var(--color-expense)' }}
+              >
+                {formatAmount(total)}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={() => exportWindowToCSV(w.title, entries)}
+                className="flex h-10 items-center gap-1.5 rounded-xl px-3.5 text-xs font-semibold transition-opacity duration-150 active:opacity-80"
+                style={{
+                  background: 'var(--color-surface-2)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                <Download size={13} strokeWidth={2} />
+                CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => exportWindowToPDF(w.title, entries)}
+                className="flex h-10 items-center gap-1.5 rounded-xl px-3.5 text-xs font-semibold transition-opacity duration-150 active:opacity-80"
+                style={{
+                  background: 'var(--color-surface-2)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text-muted)',
+                }}
+              >
+                <Download size={13} strokeWidth={2} />
+                PDF
+              </button>
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => exportWindowToCSV(w.title, entries)}
-              className="flex h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-opacity duration-150 active:opacity-80"
-              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}
-            >
-              <Download size={14} strokeWidth={2} />
-              CSV
-            </button>
-            <button
-              type="button"
-              onClick={() => exportWindowToPDF(w.title, entries)}
-              className="flex h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-opacity duration-150 active:opacity-80"
-              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}
-            >
-              <Download size={14} strokeWidth={2} />
-              PDF
-            </button>
-          </div>
-        </div>
 
-        {/* Stats row */}
-        <div className="mt-3 flex gap-6">
-          <Stat
-            label="Income"
-            value={calcTotal(entries.filter((e) => e.amount > 0).map((e) => e.amount))}
-            color="var(--color-income)"
-          />
-          <Stat
-            label="Expense"
-            value={calcTotal(entries.filter((e) => e.amount < 0).map((e) => e.amount))}
-            color="var(--color-expense)"
-          />
-          <Stat label="Entries" value={entries.length} isCount />
+          {/* Stats row */}
+          <div className="mt-4 flex gap-6">
+            <Stat label="Income" value={incomeTotal} color="var(--color-income)" />
+            <Stat label="Expense" value={expenseTotal} color="var(--color-expense)" />
+            <Stat label="Entries" value={entries.length} isCount />
+          </div>
         </div>
       </div>
 
@@ -209,15 +220,14 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
             <div key={dateLabel}>
               {/* Date header */}
               <div
-                className="flex items-center gap-2 px-4 py-2"
-                style={{ background: 'color-mix(in oklab, var(--color-surface-2) 92%, transparent)' }}
+                className="px-4 py-2.5"
+                style={{ background: 'color-mix(in oklab, var(--color-surface) 92%, transparent)' }}
               >
-                <span className="text-[0.6875rem] font-semibold uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+                <span
+                  className="text-[0.6875rem] font-bold uppercase tracking-widest"
+                  style={{ color: 'var(--color-text-muted)' }}
+                >
                   {dateLabel}
-                </span>
-                <div className="h-px flex-1" style={{ background: 'var(--color-border)' }} />
-                <span className="amount-mono text-[0.6875rem] font-semibold" style={{ color: 'var(--color-text-dim)' }}>
-                  {formatAmount(calcTotal(dayEntries.map((e) => e.amount)))}
                 </span>
               </div>
 

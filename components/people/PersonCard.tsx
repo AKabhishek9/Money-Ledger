@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { MoreVertical, Trash2, Pencil } from 'lucide-react';
-import type { Person } from '@/lib/types';
+import { useState, useRef, useEffect } from 'react';
+import { MoreVertical, Trash2, Pencil, ChevronRight } from 'lucide-react';
 import { formatAmount } from '@/lib/parser';
+import type { Person } from '@/lib/types';
 
 interface PersonCardProps {
   person: Person;
@@ -22,128 +22,118 @@ export default function PersonCard({
   onDelete,
   onEdit,
 }: PersonCardProps) {
-  const [showMenu, setShowMenu] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const isPositive = balance > 0;
   const isZero = balance === 0;
 
+  useEffect(() => {
+    if (!menuOpen) return;
+    const close = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [menuOpen]);
+
   return (
-    <div
-      className={`surface-card relative mx-4 mb-3 rounded-2xl transition-shadow duration-200 ${showMenu ? 'z-30' : ''}`}
-      style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-      }}
-    >
+    <div className="mx-4 mb-3 relative">
       <button
         type="button"
-        className="flex w-full items-center gap-3 p-4 text-left transition-[transform,opacity] duration-150 active:scale-[0.995] active:opacity-90"
         onClick={onClick}
+        className="flex w-full items-center gap-3.5 rounded-2xl px-4 py-3.5 text-left transition-all duration-200 active:opacity-90"
+        style={{
+          background: 'var(--color-surface)',
+          border: '1px solid var(--color-border)',
+          boxShadow: 'var(--shadow-card-sm)',
+        }}
       >
         {/* Avatar */}
         <div
-          className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 font-bold text-base"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold"
           style={{
             background: isZero
               ? 'var(--color-surface-2)'
               : isPositive
-              ? 'var(--color-income-bg)'
-              : 'var(--color-expense-bg)',
-            color: isZero
-              ? 'var(--color-text-muted)'
-              : isPositive
-              ? 'var(--color-income)'
-              : 'var(--color-expense)',
+                ? 'var(--color-income-bg)'
+                : 'var(--color-expense-bg)',
+            color: isZero ? 'var(--color-text-muted)' : isPositive ? 'var(--color-income)' : 'var(--color-expense)',
           }}
         >
           {person.name.charAt(0).toUpperCase()}
         </div>
 
-        {/* Info */}
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-sm truncate" style={{ color: 'var(--color-text)' }}>
+        {/* Name + note */}
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[0.9375rem] font-semibold leading-tight tracking-tight" style={{ color: 'var(--color-text)' }}>
             {person.name}
           </p>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+          <p className="mt-1 truncate text-xs" style={{ color: 'var(--color-text-muted)' }}>
             {entryCount} {entryCount === 1 ? 'entry' : 'entries'}
-            {person.note ? ` · ${person.note}` : ''}
+            {person.note && ` · ${person.note}`}
           </p>
         </div>
 
-        {/* Balance */}
-        <div className="mr-10 shrink-0 text-right">
-          {isZero ? (
-            <span className="text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>
-              Settled
-            </span>
-          ) : (
-            <>
-              <p
-                className="amount-mono text-lg font-bold leading-none tracking-tight"
-                style={{ color: isPositive ? 'var(--color-income)' : 'var(--color-expense)' }}
-              >
-                {formatAmount(balance)}
-              </p>
-              <p className="mt-1 text-[0.625rem] font-medium uppercase tracking-wide" style={{ color: 'var(--color-text-muted)' }}>
-                {isPositive ? 'Owes you' : 'You owe'}
-              </p>
-            </>
-          )}
+        {/* Balance + chevron */}
+        <div className="flex shrink-0 items-center gap-2">
+          <span
+            className="amount-mono text-base font-semibold tabular-nums"
+            style={{
+              color: isZero ? 'var(--color-text-muted)' : isPositive ? 'var(--color-income)' : 'var(--color-expense)',
+            }}
+          >
+            {isZero ? '₹0' : formatAmount(balance)}
+          </span>
+          <ChevronRight size={16} style={{ color: 'var(--color-text-dim)' }} />
         </div>
       </button>
 
-      {/* Menu button */}
-      <button
-        type="button"
-        className="absolute right-2 top-2 flex h-10 w-10 items-center justify-center rounded-xl transition-colors duration-150"
-        style={{ color: 'var(--color-text-muted)' }}
-        aria-expanded={showMenu}
-        aria-label="Person actions"
-        onClick={(e) => {
-          e.stopPropagation();
-          setShowMenu(!showMenu);
-        }}
-      >
-        <MoreVertical size={18} strokeWidth={2} />
-      </button>
+      {/* 3-dot menu */}
+      <div className="absolute right-2 top-2" ref={menuRef}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen(!menuOpen);
+          }}
+          className="flex h-9 w-9 items-center justify-center rounded-xl transition-opacity active:opacity-70"
+          style={{ color: 'var(--color-text-dim)' }}
+          aria-label="More options"
+        >
+          <MoreVertical size={16} />
+        </button>
 
-      {showMenu && (
-        <>
+        {menuOpen && (
           <div
-            className="animate-scale-in absolute right-2 top-12 z-[60] rounded-xl shadow-lg"
+            className="absolute right-0 top-10 z-30 animate-fade-in overflow-hidden rounded-xl py-1"
             style={{
               background: 'var(--color-surface-2)',
-              border: '1px solid var(--color-border)',
-              minWidth: 130,
+              border: '1px solid var(--color-border-2)',
+              boxShadow: 'var(--shadow-card)',
+              minWidth: 160,
             }}
           >
             <button
               type="button"
-              className="flex w-full items-center gap-2 px-3 py-3 text-left text-sm font-medium transition-colors duration-150 active:bg-[var(--color-surface-3)]"
+              onClick={() => { setMenuOpen(false); onEdit(); }}
+              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[0.8125rem] font-medium transition-opacity active:opacity-80"
               style={{ color: 'var(--color-text)' }}
-              onClick={() => {
-                setShowMenu(false);
-                onEdit();
-              }}
             >
-              <Pencil size={14} strokeWidth={2} />
+              <Pencil size={14} />
               Edit
             </button>
             <button
               type="button"
-              className="flex w-full items-center gap-2 px-3 py-3 text-left text-sm font-medium transition-colors duration-150 active:bg-[var(--color-surface-3)]"
+              onClick={() => { setMenuOpen(false); onDelete(); }}
+              className="flex w-full items-center gap-2.5 px-4 py-2.5 text-[0.8125rem] font-medium transition-opacity active:opacity-80"
               style={{ color: 'var(--color-expense)' }}
-              onClick={() => {
-                setShowMenu(false);
-                onDelete();
-              }}
             >
-              <Trash2 size={14} strokeWidth={2} />
+              <Trash2 size={14} />
               Delete
             </button>
           </div>
-          <div className="fixed inset-0 z-50" style={{ background: 'var(--color-overlay-scrim)' }} aria-hidden onClick={() => setShowMenu(false)} />
-        </>
-      )}
+        )}
+      </div>
     </div>
   );
 }

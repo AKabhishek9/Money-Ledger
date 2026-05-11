@@ -2,7 +2,7 @@
 
 import { Suspense, useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Plus } from 'lucide-react';
+import { Plus, Download } from 'lucide-react';
 import AuthGuard from '@/components/auth/AuthGuard';
 import AppLayout from '@/components/layout/AppLayout';
 import Header from '@/components/layout/Header';
@@ -123,6 +123,28 @@ function PeopleContent() {
           subtitle="Personal Ledger"
           showBack
           onBack={() => router.push('/people')}
+          rightAction={
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {/* CSV handled inside PersonLedger */}}
+                className="flex h-9 items-center gap-1 rounded-full px-3 text-[0.6875rem] font-bold uppercase tracking-wide"
+                style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
+              >
+                <Download size={12} strokeWidth={2.5} />
+                CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => {/* PDF handled inside PersonLedger */}}
+                className="flex h-9 items-center gap-1 rounded-full px-3 text-[0.6875rem] font-bold uppercase tracking-wide"
+                style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
+              >
+                <Download size={12} strokeWidth={2.5} />
+                PDF
+              </button>
+            </div>
+          }
         />
         <div className="flex-1 overflow-hidden flex flex-col">
           <PersonLedger person={selectedPerson} userId={user!.uid} />
@@ -140,8 +162,8 @@ function PeopleContent() {
         rightAction={
           <button
             onClick={() => { setNewName(''); setNewNote(''); setShowAddSheet(true); }}
-            className="p-2 rounded-xl"
-            style={{ background: 'var(--color-surface-2)', color: 'var(--color-accent)' }}
+            className="flex h-10 w-10 items-center justify-center rounded-full"
+            style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
           >
             <Plus size={20} />
           </button>
@@ -150,30 +172,36 @@ function PeopleContent() {
 
       {/* Combined total banner */}
       {persons.length > 0 && (
-        <div
-          className="surface-card mx-4 mb-3 mt-4 flex items-center justify-between gap-3 rounded-2xl p-4"
-          style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-        >
-          <div className="min-w-0">
-            <p className="text-balance-label mb-1">Combined net</p>
-            <p
-              className="amount-mono text-xl font-bold leading-none tracking-tight"
-              style={{
-                color:
-                  combinedBalance > 0
-                    ? 'var(--color-income)'
-                    : combinedBalance < 0
-                      ? 'var(--color-expense)'
-                      : 'var(--color-text)',
-              }}
-            >
-              {formatAmount(combinedBalance)}
-            </p>
-          </div>
-          <div className="shrink-0 text-right">
-            <p className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
-              {persons.length} {persons.length === 1 ? 'person' : 'people'}
-            </p>
+        <div className="px-4 pt-4 pb-1">
+          <div
+            className="flex items-center justify-between gap-3 rounded-2xl p-4"
+            style={{
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border-2)',
+              boxShadow: 'var(--shadow-card)',
+            }}
+          >
+            <div className="min-w-0">
+              <p className="text-balance-label mb-1">Combined net</p>
+              <p
+                className="amount-mono text-xl font-bold leading-none tracking-tight"
+                style={{
+                  color:
+                    combinedBalance > 0
+                      ? 'var(--color-income)'
+                      : combinedBalance < 0
+                        ? 'var(--color-expense)'
+                        : 'var(--color-text)',
+                }}
+              >
+                {formatAmount(combinedBalance)}
+              </p>
+            </div>
+            <div className="shrink-0 text-right">
+              <p className="text-xs font-medium" style={{ color: 'var(--color-text-muted)' }}>
+                {persons.length} {persons.length === 1 ? 'person' : 'people'}
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -191,7 +219,7 @@ function PeopleContent() {
           </p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto pt-2 pb-24">
+        <div className="flex-1 overflow-y-auto pt-3 pb-24">
           {persons.map((p) => (
             <PersonCard
               key={p.id}

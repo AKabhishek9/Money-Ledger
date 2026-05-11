@@ -2,46 +2,46 @@
 
 @theme {
   /*
-   * Money Ledger — Forest Canopy (Premium Digital Notebook)
-   * Palette: #051F20 deep bg · #DAF1DE text · #8EB69B soft accent
+   * Money Ledger — Charcoal & Orange (Premium Minimal)
+   * Palette: #1A1A1A deep bg · #FFFFFF text · #E27500 vivid accent
    * Calm · Premium · Trustworthy · Readable · Minimal
    */
 
   /* ── Backgrounds & Surfaces (layered depth) ── */
-  --color-bg: #051F20;          /* Main app background */
-  --color-surface: #0B2B26;     /* Cards, elevated containers */
-  --color-surface-2: #163832;   /* Secondary cards, hover surfaces */
-  --color-surface-3: #235347;   /* Active states, focused elements */
-  --color-border: rgba(218, 241, 222, 0.10);
-  --color-border-2: rgba(218, 241, 222, 0.18);
+  --color-bg: #1A1A1A;          /* Main app background */
+  --color-surface: #242424;     /* Cards, elevated containers */
+  --color-surface-2: #2E2E2E;   /* Secondary cards, hover surfaces */
+  --color-surface-3: #3A3A3A;   /* Active states, focused elements */
+  --color-border: rgba(234, 234, 234, 0.12);
+  --color-border-2: rgba(234, 234, 234, 0.20);
 
   /* ── Typography ── */
-  --color-text: #DAF1DE;                          /* Primary text, headings, amounts */
-  --color-text-muted: rgba(218, 241, 222, 0.65);  /* Secondary/meta text */
-  --color-text-dim: rgba(218, 241, 222, 0.40);    /* Placeholder, disabled, timestamps */
+  --color-text: #FFFFFF;                           /* Primary text, headings, amounts */
+  --color-text-muted: rgba(234, 234, 234, 0.65);  /* Secondary/meta text */
+  --color-text-dim: rgba(234, 234, 234, 0.40);    /* Placeholder, disabled, timestamps */
 
   /* ── Semantic: Income & Expense ── */
-  --color-income: #8EB69B;
-  --color-income-bg: rgba(142, 182, 155, 0.12);
-  --color-expense: #D97C6C;
-  --color-expense-bg: rgba(217, 124, 108, 0.12);
+  --color-income: #4CAF50;
+  --color-income-bg: rgba(76, 175, 80, 0.14);
+  --color-expense: #EF5350;
+  --color-expense-bg: rgba(239, 83, 80, 0.14);
 
   /* ── Accent (use sparingly) ── */
-  --color-accent: #8EB69B;
-  --color-accent-2: #DAF1DE;
-  --color-accent-bg: rgba(142, 182, 155, 0.12);
+  --color-accent: #E27500;
+  --color-accent-2: #FF9A33;
+  --color-accent-bg: rgba(226, 117, 0, 0.14);
 
   /* ── Gold / Highlight ── */
-  --color-gold: #D4A96A;
-  --color-gold-bg: rgba(212, 169, 106, 0.10);
+  --color-gold: #E27500;
+  --color-gold-bg: rgba(226, 117, 0, 0.12);
 
   /* ── Navigation ── */
-  --color-nav: #051F20;
-  --color-on-accent: #051F20;   /* Text on filled accent buttons */
+  --color-nav: #1A1A1A;
+  --color-on-accent: #FFFFFF;   /* Text on filled accent buttons */
 
   /* ── Elevation & Motion ── */
-  --shadow-card: 0 6px 18px rgba(0, 0, 0, 0.20);
-  --shadow-card-sm: 0 2px 8px rgba(0, 0, 0, 0.14);
+  --shadow-card: 0 6px 18px rgba(0, 0, 0, 0.30);
+  --shadow-card-sm: 0 2px 8px rgba(0, 0, 0, 0.22);
   --radius-card: 1.25rem;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 160ms;
@@ -55,9 +55,9 @@
   /* Fixed BottomNav — reserve space so entry input stays above the bar */
   --app-bottom-nav-pad: calc(5.75rem + env(safe-area-inset-bottom, 0px));
   /* Scrims */
-  --color-overlay-scrim: rgba(5, 31, 32, 0.45);
-  --color-sheet-backdrop: rgba(5, 31, 32, 0.62);
-  --color-modal-backdrop: rgba(5, 31, 32, 0.72);
+  --color-overlay-scrim: rgba(26, 26, 26, 0.55);
+  --color-sheet-backdrop: rgba(26, 26, 26, 0.68);
+  --color-modal-backdrop: rgba(26, 26, 26, 0.78);
 }
 
 * {
@@ -99,7 +99,7 @@ button,
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(142, 182, 155, 0.25);
+  background: rgba(226, 117, 0, 0.25);
   border-radius: 99px;
 }
 
@@ -126,7 +126,7 @@ button,
 
 /* Entry input focus */
 .entry-input:focus {
-  box-shadow: 0 0 0 2px rgba(142, 182, 155, 0.30);
+  box-shadow: 0 0 0 2px rgba(226, 117, 0, 0.30);
 }
 
 /* ── Keyframe Animations ── */
@@ -222,22 +222,31 @@ input[type='number'] {
 
 /* Date input — style for dark surfaces */
 input[type='date']::-webkit-calendar-picker-indicator {
-  filter: invert(0.8) sepia(1) saturate(0.5) hue-rotate(90deg);
+  filter: invert(0.8);
   opacity: 0.55;
   cursor: pointer;
 }
 
 /* Glass card — very soft dark panel */
 .glass {
-  background: rgba(11, 43, 38, 0.65);
+  background: rgba(36, 36, 36, 0.65);
   backdrop-filter: blur(14px);
   border: 1px solid var(--color-border);
 }
 
 /* Active state — softly illuminated, no glow */
 .active-state {
-  background: #235347;
-  box-shadow: 0 0 0 1px rgba(142, 182, 155, 0.15);
+  background: #3A3A3A;
+  box-shadow: 0 0 0 1px rgba(226, 117, 0, 0.15);
+}
+
+/* Section label — uppercase, dim, small */
+.text-balance-label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--color-text-dim);
 }
 
 /* ── Money Loader (3D tower) ── */
@@ -275,7 +284,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
 
 .money-loader-side-left {
   position: absolute;
-  background-color: #0B2B26;
+  background-color: #242424;
   width: 19px;
   height: 5px;
   transform: skew(0deg, -25deg);
@@ -285,7 +294,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
 
 .money-loader-side-right {
   position: absolute;
-  background-color: #235347;
+  background-color: #3A3A3A;
   width: 19px;
   height: 5px;
   transform: skew(0deg, 25deg);
@@ -295,7 +304,7 @@ input[type='date']::-webkit-calendar-picker-indicator {
 
 .money-loader-side-top {
   position: absolute;
-  background-color: #8EB69B;
+  background-color: #E27500;
   width: 20px;
   height: 20px;
   rotate: 45deg;

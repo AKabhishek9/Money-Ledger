@@ -100,9 +100,9 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-      {/* Balance header — chat profile strip */}
-      <div className="surface-card shrink-0 px-4 py-3" style={{ borderBottom: '1px solid var(--color-border)' }}>
-        <div className="mb-3 flex items-start justify-between gap-3">
+      {/* Person header strip */}
+      <div className="shrink-0 px-4 pt-3 pb-1">
+        <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div
               className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-lg font-bold tracking-tight"
@@ -129,60 +129,66 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={() => exportPersonToCSV(person.name, entries)}
-              className="flex h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-opacity duration-150 active:opacity-80"
-              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}
+              className="flex h-10 w-10 items-center justify-center rounded-full transition-opacity duration-150 active:opacity-80"
+              style={{
+                background: 'var(--color-accent)',
+                color: 'var(--color-on-accent)',
+              }}
+              aria-label="Export CSV"
             >
-              <Download size={14} strokeWidth={2} />
-              CSV
+              <Download size={16} strokeWidth={2} />
             </button>
             <button
               type="button"
               onClick={() => exportPersonToPDF(person.name, entries)}
-              className="flex h-10 items-center gap-1.5 rounded-xl px-3 text-xs font-semibold transition-opacity duration-150 active:opacity-80"
-              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}
+              className="flex h-10 w-10 items-center justify-center rounded-full transition-opacity duration-150 active:opacity-80"
+              style={{
+                background: 'var(--color-accent)',
+                color: 'var(--color-on-accent)',
+              }}
+              aria-label="Export PDF"
             >
-              <Download size={14} strokeWidth={2} />
-              PDF
+              <Download size={16} strokeWidth={2} />
             </button>
           </div>
         </div>
+      </div>
 
+      {/* NET BALANCE card */}
+      <div className="px-4 pt-3 pb-2">
         <div
-          className="flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
+          className="rounded-2xl px-5 py-4 text-center"
           style={{
-            background: isZero
-              ? 'var(--color-surface-2)'
-              : isPositive
-                ? 'var(--color-income-bg)'
-                : 'var(--color-expense-bg)',
-            border: '1px solid color-mix(in oklab, var(--color-border) 65%, transparent)',
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border-2)',
+            boxShadow: 'var(--shadow-card)',
           }}
         >
-          <div>
-            <p className="text-balance-label mb-1">Net balance</p>
-            <p
-              className="amount-mono text-2xl font-bold leading-none tracking-tight"
-              style={{
-                color: isZero ? 'var(--color-text-muted)' : isPositive ? 'var(--color-income)' : 'var(--color-expense)',
-              }}
-            >
-              {isZero ? '₹0' : formatAmount(balance)}
-            </p>
-          </div>
-          <div className="max-w-[48%] text-right">
-            <p className="text-xs font-medium leading-snug" style={{ color: 'var(--color-text-muted)' }}>
-              {isZero ? 'All square' : isPositive ? `${person.name} owes you` : `You owe ${person.name}`}
-            </p>
-          </div>
+          <p className="text-balance-label mb-2">Net Balance</p>
+          <p
+            className="amount-mono text-[2rem] font-bold leading-none tracking-tight"
+            style={{
+              color: isZero ? 'var(--color-text-muted)' : isPositive ? 'var(--color-income)' : 'var(--color-expense)',
+            }}
+          >
+            {isZero ? '₹0' : formatAmount(balance)}
+          </p>
+          <p className="mt-2 text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>
+            {isZero ? 'All settled up' : isPositive ? `${person.name} owes you.` : `You owe ${person.name}.`}
+          </p>
+          <p className="mt-1.5 text-[0.6875rem] leading-relaxed" style={{ color: 'var(--color-text-dim)' }}>
+            +amount → {person.name} owes you · −amount → you owe
+          </p>
         </div>
+      </div>
 
-        <p className="mt-2 text-center text-[0.6875rem] leading-relaxed" style={{ color: 'var(--color-text-dim)' }}>
-          +amount → {person.name} owes you · −amount → you owe
-        </p>
+      {/* TRANSACTION HISTORY section */}
+      <div className="px-4 pt-3 pb-1">
+        <p className="text-balance-label">Transaction History</p>
       </div>
 
       {/* Entries */}
@@ -219,6 +225,7 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
         )}
       </div>
 
+      {/* QUICK ENTRY section */}
       <div className="shrink-0 border-t" style={{ borderColor: 'var(--color-border)', background: 'var(--color-nav)' }}>
         <EntryInput
           onAdd={handleAdd}
