@@ -1,60 +1,35 @@
-import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import "./globals.css";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { DataProvider } from "@/contexts/DataContext";
-import { SWRConfig } from 'swr';
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
-});
+import type { Metadata, Viewport } from 'next';
+import './globals.css';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 export const metadata: Metadata = {
-  title: "Money Agent — Smart Personal Finance Manager",
-  description:
-    "Take control of your finances with Money Agent. Smart tracking, deep analytics, and AI-powered insights for your personal wealth management.",
-  keywords: ["finance", "expense tracker", "budget", "AI", "personal finance", "money management"],
-  icons: {
-    icon: "/icon.png",
-    apple: "/icon.png",
-  },
-  openGraph: {
-    title: "Money Agent — Smart Personal Finance Manager",
-    description: "Smart tracking, deep analytics, and AI-powered financial insights.",
-    type: "website",
-    locale: "en_IN",
-  },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
-  robots: { index: true, follow: true },
-  other: {
-    "theme-color": "#0b0e14",
-  },
+  title: 'MoneyAI — Personal Ledger',
+  description: 'Your offline-first smart accounting notebook',
+  icons: { icon: '/icon.png' },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'MoneyAI' },
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#0b0b12',
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} h-full`}>
-      <body className="min-h-full antialiased">
-        <SWRConfig 
-          value={{
-            revalidateOnFocus: false,
-            revalidateOnReconnect: false,
-            dedupingInterval: 10000,
-            keepPreviousData: true,
-          }}
-        >
-          <AuthProvider>
-            <DataProvider>
-              {children}
-            </DataProvider>
-          </AuthProvider>
-        </SWRConfig>
+    <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

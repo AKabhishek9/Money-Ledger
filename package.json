@@ -1,27 +1,31 @@
 {
-  "name": "money-agent",
-  "version": "0.1.0",
+  "name": "moneyai",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint ."
   },
   "dependencies": {
-    "chart.js": "^4.5.1",
+    "@types/uuid": "^10.0.0",
+    "dexie": "^4.4.2",
+    "dexie-react-hooks": "^4.4.0",
     "firebase": "^12.12.1",
-    "firebase-admin": "^13.9.0",
     "lucide-react": "^1.14.0",
     "next": "16.2.4",
+    "papaparse": "^5.4.1",
+    "pdf-lib": "^1.17.1",
     "react": "19.2.4",
-    "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.4",
-    "swr": "^2.4.1"
+    "uuid": "^14.0.0",
+    "zustand": "^4.5.2"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/papaparse": "^5.3.14",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

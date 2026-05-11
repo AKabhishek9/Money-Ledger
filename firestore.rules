@@ -3,8 +3,7 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions
-    function isAuthenticated() {
+    function isAuth() {
       return request.auth != null;
     }
 
@@ -12,62 +11,64 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    function validAmount() {
-      return request.resource.data.amount is number
-        && request.resource.data.amount > 0;
+    // User profile
+    match /users/{uid} {
+      allow read, write: if isAuth() && isOwner(uid);
     }
 
-    // Users can only read/write their own user document
-    match /users/{userId} {
-      allow read, write: if isAuthenticated() && isOwner(userId);
-    }
-
-    // Sections — only the owner can access their sections
-    match /sections/{sectionId} {
-      allow read: if isAuthenticated() && isOwner(resource.data.userId);
-      allow create: if isAuthenticated()
-        && isOwner(request.resource.data.userId)
-        && request.resource.data.name is string
-        && request.resource.data.name.size() > 0
-        && request.resource.data.name.size() <= 50;
-      allow update: if isAuthenticated() && isOwner(resource.data.userId);
-      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
-    }
-
-    // Transactions — only the owner can access their transactions
-    match /transactions/{txId} {
-      allow read: if isAuthenticated() && isOwner(resource.data.userId);
-      allow create: if isAuthenticated()
-        && isOwner(request.resource.data.userId)
-        && validAmount()
-        && request.resource.data.type in ['income', 'expense', 'transfer', 'loan'];
-      allow update: if isAuthenticated() && isOwner(resource.data.userId);
-      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
-    }
-
-    // Persons — only the owner can access
-    match /persons/{personId} {
-      allow read: if isAuthenticated() && isOwner(resource.data.userId);
-      allow create: if isAuthenticated()
-        && isOwner(request.resource.data.userId)
+    // Tabs (Personal, People, Vault, Custom)
+    match /tabs/{tabId} {
+      allow read: if isAuth() && isOwner(resource.data.userId);
+      allow create: if isAuth() && isOwner(request.resource.data.userId)
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0;
-      allow update: if isAuthenticated() && isOwner(resource.data.userId);
-      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
+      allow update, delete: if isAuth() && isOwner(resource.data.userId);
     }
 
-    // Vault — only the owner, extra strict
-    match /vault/{itemId} {
-      allow read: if isAuthenticated() && isOwner(resource.data.userId);
-      allow create: if isAuthenticated()
-        && isOwner(request.resource.data.userId)
+    // Windows / Pages within tabs
+    match /windows/{windowId} {
+      allow read: if isAuth() && isOwner(resource.data.userId);
+      allow create: if isAuth() && isOwner(request.resource.data.userId)
         && request.resource.data.title is string
         && request.resource.data.title.size() > 0;
-      allow update: if isAuthenticated() && isOwner(resource.data.userId);
-      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
+      allow update, delete: if isAuth() && isOwner(resource.data.userId);
     }
 
-    // Deny everything else
+    // Entries within windows
+    match /entries/{entryId} {
+      allow read: if isAuth() && isOwner(resource.data.userId);
+      allow create: if isAuth() && isOwner(request.resource.data.userId)
+        && request.resource.data.rawText is string
+        && request.resource.data.rawText.size() > 0;
+      allow update, delete: if isAuth() && isOwner(resource.data.userId);
+    }
+
+    // People (person ledger headers)
+    match /persons/{personId} {
+      allow read: if isAuth() && isOwner(resource.data.userId);
+      allow create: if isAuth() && isOwner(request.resource.data.userId)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0;
+      allow update, delete: if isAuth() && isOwner(resource.data.userId);
+    }
+
+    // Person ledger entries
+    match /personEntries/{entryId} {
+      allow read: if isAuth() && isOwner(resource.data.userId);
+      allow create: if isAuth() && isOwner(request.resource.data.userId);
+      allow update, delete: if isAuth() && isOwner(resource.data.userId);
+    }
+
+    // Vault items
+    match /vault/{itemId} {
+      allow read: if isAuth() && isOwner(resource.data.userId);
+      allow create: if isAuth() && isOwner(request.resource.data.userId)
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0;
+      allow update, delete: if isAuth() && isOwner(resource.data.userId);
+    }
+
+    // Deny all other access
     match /{document=**} {
       allow read, write: if false;
     }

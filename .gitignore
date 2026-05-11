@@ -1,14 +1,7 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
 /.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
+.pnp.js
 
 # testing
 /coverage
@@ -28,30 +21,12 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
-!.env.example
-
-# Agents and Reports
-.agents/
-graphify-out/
-*.md
-!README.md
-!QUICKSTART.md
-MoneyAI_Agent_Action_Report.md
-roo-preview-*.md
-
-# Firebase Keys (Safety first)
-service-account.json
-firebase-admin-key.json
-*.key.json
-serviceAccountKey.json
-
-# Firebase service account keys — NEVER commit these
-*-firebase-adminsdk-*.json
-serviceAccountKey.json
+# local env files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # vercel
 .vercel
@@ -59,3 +34,7 @@ serviceAccountKey.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# firebase
+.firebase/
+node_modules

@@ -1,0 +1,241 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import { Plus } from 'lucide-react';
+import AuthGuard from '@/components/auth/AuthGuard';
+import AppLayout from '@/components/layout/AppLayout';
+import Header from '@/components/layout/Header';
+import WindowCard from '@/components/windows/WindowCard';
+import WindowView from '@/components/windows/WindowView';
+import BottomSheet from '@/components/ui/BottomSheet';
+import Confirm from '@/components/ui/Confirm';
+import { useAuth } from '@/contexts/AuthContext';
+import { getDb } from '@/lib/db';
+import { localGetEntries } from '@/lib/entries';
+import { getMonthKey, getMonthWindowTitle } from '@/lib/utils';
+import { useStore } from '@/store/useStore';
+import type { Tab, MoneyWindow } from '@/lib/types';
+
+export default function PersonalPage() {
+  return (
+    <AuthGuard>
+      <AppLayout>
+        <PersonalContent />
+      </AppLayout>
+    </AuthGuard>
+  );
+}
+
+function PersonalContent() {
+  const { user } = useAuth();
+  const {
+    addWindow,
+    loadWindows,
+    persons,
+    softDeleteWindow,
+    updateWindow: updateWindowStore,
+  } = useStore();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const windowId = searchParams.get('w');
+
+  const [personalTab, setPersonalTab] = useState<Tab | null>(null);
+  const [windows, setWindows] = useState<MoneyWindow[]>([]);
+  const [windowStats, setWindowStats] = useState<Record<string, { total: number; count: number }>>({});
+  const [loading, setLoading] = useState(true);
+  const [showAddSheet, setShowAddSheet] = useState(false);
+  const [newWindowTitle, setNewWindowTitle] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState<MoneyWindow | null>(null);
+
+  const selectedWindow = windows.find((w) => w.id === windowId) || null;
+
+  const load = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
+    try {
+      const db = getDb();
+      const tabs = await db.tabs.where('userId').equals(user.uid).toArray();
+      const pTab = tabs.find((t) => t.type === 'personal') || null;
+      setPersonalTab(pTab);
+      if (!pTab) { setLoading(false); return; }
+
+      const monthKey = getMonthKey();
+      const existingMonth = await db.windows
+        .where('tabId')
+        .equals(pTab.id)
+        .filter((w) => w.monthKey === monthKey)
+        .count();
+
+      if (existingMonth === 0) {
+        await addWindow(user.uid, pTab.id, getMonthWindowTitle(), {
+          autoMonthly: true,
+          monthKey,
+          pinned: true,
+        });
+      }
+
+      const wins = await loadWindows(user.uid, pTab.id);
+      setWindows(wins);
+
+      const stats: Record<string, { total: number; count: number }> = {};
+      await Promise.all(
+        wins.map(async (w) => {
+          const entries = await localGetEntries(w.id);
+          stats[w.id] = {
+            total: entries.reduce((s, e) => s + e.amount, 0),
+            count: entries.length,
+          };
+        })
+      );
+      setWindowStats(stats);
+    } finally {
+      setLoading(false);
+    }
+  }, [user, addWindow, loadWindows]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleAddWindow = async () => {
+    if (!user || !personalTab || !newWindowTitle.trim()) return;
+    await addWindow(user.uid, personalTab.id, newWindowTitle.trim());
+    setNewWindowTitle('');
+    setShowAddSheet(false);
+    load();
+  };
+
+  const handlePin = async (w: MoneyWindow) => {
+    await updateWindowStore(w.id, { pinned: !w.pinned });
+    load();
+  };
+
+  const handleArchive = async (w: MoneyWindow) => {
+    await updateWindowStore(w.id, { archived: true });
+    load();
+  };
+
+  const handleDelete = async (w: MoneyWindow) => {
+    await softDeleteWindow(w.id);
+    setDeleteTarget(null);
+    if (windowId === w.id) router.replace('/personal');
+    load();
+  };
+
+  // ── Window detail view ──
+  if (selectedWindow) {
+    return (
+      <div className="flex flex-col h-screen">
+        <Header
+          title={selectedWindow.title}
+          showBack
+          onBack={() => router.replace('/personal')}
+        />
+        <div className="flex-1 overflow-hidden flex flex-col">
+          <WindowView
+            window={selectedWindow}
+            userId={user!.uid}
+            onBack={() => router.replace('/personal')}
+            persons={persons}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ── Windows list ──
+  return (
+    <div>
+      <Header
+        title="Personal"
+        subtitle="Your accounting notebook"
+        rightAction={
+          <button
+            onClick={() => setShowAddSheet(true)}
+            className="p-2 rounded-xl"
+            style={{ background: 'var(--color-surface-2)', color: 'var(--color-accent)' }}
+          >
+            <Plus size={20} />
+          </button>
+        }
+      />
+
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <p className="text-sm loading-pulse" style={{ color: 'var(--color-text-muted)' }}>
+            Loading…
+          </p>
+        </div>
+      ) : windows.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
+          <div className="text-5xl mb-4">📓</div>
+          <p className="font-semibold text-base mb-1" style={{ color: 'var(--color-text)' }}>
+            No pages yet
+          </p>
+          <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            Tap + to create a new page
+          </p>
+        </div>
+      ) : (
+        <div className="pt-4">
+          {windows.map((w) => (
+            <WindowCard
+              key={w.id}
+              window={w}
+              total={windowStats[w.id]?.total ?? 0}
+              entryCount={windowStats[w.id]?.count ?? 0}
+              onClick={() => router.push(`/personal?w=${w.id}`)}
+              onPin={() => handlePin(w)}
+              onArchive={() => handleArchive(w)}
+              onDelete={() => setDeleteTarget(w)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Add window sheet */}
+      {showAddSheet && (
+        <BottomSheet title="New Page" onClose={() => setShowAddSheet(false)}>
+          <div className="p-4 flex flex-col gap-4">
+            <input
+              type="text"
+              value={newWindowTitle}
+              onChange={(e) => setNewWindowTitle(e.target.value)}
+              placeholder="Page title (e.g. Business Expenses)"
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              style={{
+                background: 'var(--color-surface-2)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text)',
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddWindow()}
+              autoFocus
+            />
+            <button
+              onClick={handleAddWindow}
+              disabled={!newWindowTitle.trim()}
+              className="w-full py-3 rounded-xl text-sm font-semibold"
+              style={{
+                background: newWindowTitle.trim() ? 'var(--color-accent)' : 'var(--color-text-dim)',
+                color: '#fff',
+              }}
+            >
+              Create Page
+            </button>
+          </div>
+        </BottomSheet>
+      )}
+
+      {/* Delete confirm */}
+      {deleteTarget && (
+        <Confirm
+          title="Move to Trash?"
+          message={`"${deleteTarget.title}" will be moved to the recycle bin.`}
+          confirmLabel="Delete"
+          danger
+          onConfirm={() => handleDelete(deleteTarget)}
+          onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+    </div>
+  );
+}

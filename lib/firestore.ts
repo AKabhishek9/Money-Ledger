@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   addDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
   getDocs,
@@ -10,94 +11,352 @@ import {
   where,
   orderBy,
   serverTimestamp,
-  increment,
   writeBatch,
   Timestamp,
-  limit,
-  setDoc,
-  startAfter,
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Section, Person, Transaction, VaultItem, TransactionType } from '@/lib/types';
+import type { Tab, MoneyWindow, Entry, Person, PersonEntry, VaultItem } from '@/lib/types';
+import { getMonthWindowTitle, getMonthKey } from '@/lib/utils';
 
-// Helper for timeouts
-const withTimeout = <T>(promise: Promise<T>, ms: number = 8000): Promise<T> => {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(
-        () => reject(new Error('Request timed out. Please check your internet connection and try again.')),
-        ms
-      )
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+const toDate = (v: unknown): Date =>
+  v instanceof Timestamp ? v.toDate() : v instanceof Date ? v : new Date();
+
+const withTimeout = <T>(p: Promise<T>, ms = 10000): Promise<T> =>
+  Promise.race([
+    p,
+    new Promise<T>((_, rej) =>
+      setTimeout(() => rej(new Error('Request timed out. Check your connection.')), ms)
     ),
   ]);
-};
 
-// ===== SECTIONS =====
-
-export async function getSections(userId: string): Promise<Section[]> {
-  const q = query(
-    collection(db, 'sections'),
-    where('userId', '==', userId),
-    orderBy('createdAt', 'asc')
-  );
-  const snap = await withTimeout(getDocs(q));
-  return snap.docs
-    .map((d) => ({
-      ...d.data(),
-      id: d.id,
-      createdAt: (d.data().createdAt as Timestamp)?.toDate?.() || new Date(),
-      updatedAt: (d.data().updatedAt as Timestamp)?.toDate?.() || new Date(),
-    })) as Section[];
-}
-
-export async function addSection(
-  userId: string,
-  data: { name: string; icon: string; color: string }
-): Promise<string> {
-  if (!userId) throw new Error('User ID is required');
-  const docRef = doc(collection(db, 'sections'));
-  await withTimeout(setDoc(docRef, {
-    ...data,
-    userId,
-    type: 'custom',
-    balance: 0,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  }));
-  return docRef.id;
-}
-
-export async function updateSection(id: string, data: Partial<Section>): Promise<void> {
-  await withTimeout(updateDoc(doc(db, 'sections', id), {
-    ...data,
-    updatedAt: serverTimestamp(),
-  }));
-}
+// ─── USER INITIALIZATION ─────────────────────────────────────────────────────
 
 /**
- * Deletes a section and all its associated transactions.
+ * Called on first login. Creates system tabs + current month window.
  */
-export async function deleteSection(id: string): Promise<void> {
+export async function initializeUserData(userId: string): Promise<void> {
+  const userRef = doc(db, 'users', userId);
+  const snap = await withTimeout(getDoc(userRef));
+  if (snap.exists()) return; // already initialized
+
   const batch = writeBatch(db);
-  
-  // 1. Delete the section
-  batch.delete(doc(db, 'sections', id));
 
-  // 2. Find and delete all transactions associated with this section
-  const txQuery = query(collection(db, 'transactions'), where('sectionId', '==', id));
-  const txSnap = await withTimeout(getDocs(txQuery));
-  txSnap.forEach(d => batch.delete(d.ref));
+  // User document
+  batch.set(userRef, {
+    uid: userId,
+    createdAt: serverTimestamp(),
+  });
 
-  // 3. Also check for transactions where this was the destination section
-  const toTxQuery = query(collection(db, 'transactions'), where('toSectionId', '==', id));
-  const toTxSnap = await withTimeout(getDocs(toTxQuery));
-  toTxSnap.forEach(d => batch.delete(d.ref));
+  // System tabs
+  const systemTabs = [
+    { name: 'Personal', type: 'personal', icon: '📓', order: 0, isSystem: true },
+    { name: 'People', type: 'people', icon: '👥', order: 1, isSystem: true },
+    { name: 'Vault', type: 'vault', icon: '🔐', order: 2, isSystem: true },
+  ];
+
+  const tabIds: Record<string, string> = {};
+  for (const tab of systemTabs) {
+    const tabRef = doc(collection(db, 'tabs'));
+    tabIds[tab.type] = tabRef.id;
+    batch.set(tabRef, {
+      ...tab,
+      userId,
+      pinned: false,
+      archived: false,
+      createdAt: serverTimestamp(),
+    });
+  }
+
+  // Auto-create current month window for Personal tab
+  const monthWindowRef = doc(collection(db, 'windows'));
+  batch.set(monthWindowRef, {
+    userId,
+    tabId: tabIds['personal'],
+    title: getMonthWindowTitle(),
+    monthKey: getMonthKey(),
+    order: 0,
+    pinned: true,
+    archived: false,
+    inRecycleBin: false,
+    autoMonthly: true,
+    createdAt: serverTimestamp(),
+  });
 
   await withTimeout(batch.commit());
 }
 
-// ===== PERSONS =====
+// ─── TABS ────────────────────────────────────────────────────────────────────
+
+export async function getTabs(userId: string): Promise<Tab[]> {
+  const q = query(
+    collection(db, 'tabs'),
+    where('userId', '==', userId),
+    orderBy('order', 'asc')
+  );
+  const snap = await withTimeout(getDocs(q));
+  return snap.docs.map((d) => ({
+    ...d.data(),
+    id: d.id,
+    createdAt: toDate(d.data().createdAt),
+  })) as Tab[];
+}
+
+export async function addTab(
+  userId: string,
+  data: { name: string; icon: string }
+): Promise<string> {
+  const existing = await getTabs(userId);
+  const order = existing.length;
+  const ref = doc(collection(db, 'tabs'));
+  await withTimeout(
+    setDoc(ref, {
+      ...data,
+      userId,
+      type: 'custom',
+      order,
+      pinned: false,
+      archived: false,
+      isSystem: false,
+      createdAt: serverTimestamp(),
+    })
+  );
+  return ref.id;
+}
+
+export async function updateTab(id: string, data: Partial<Tab>): Promise<void> {
+  await withTimeout(updateDoc(doc(db, 'tabs', id), { ...data }));
+}
+
+export async function deleteTab(id: string): Promise<void> {
+  // Delete all windows and entries in this tab
+  const windowsSnap = await getDocs(query(collection(db, 'windows'), where('tabId', '==', id)));
+  const batch = writeBatch(db);
+
+  for (const w of windowsSnap.docs) {
+    const entriesSnap = await getDocs(
+      query(collection(db, 'entries'), where('windowId', '==', w.id))
+    );
+    entriesSnap.docs.forEach((e) => batch.delete(e.ref));
+    batch.delete(w.ref);
+  }
+
+  batch.delete(doc(db, 'tabs', id));
+  await withTimeout(batch.commit());
+}
+
+// ─── WINDOWS ─────────────────────────────────────────────────────────────────
+
+export async function getWindows(userId: string, tabId: string): Promise<MoneyWindow[]> {
+  const q = query(
+    collection(db, 'windows'),
+    where('userId', '==', userId),
+    where('tabId', '==', tabId),
+    where('archived', '==', false),
+    where('inRecycleBin', '==', false),
+    orderBy('pinned', 'desc'),
+    orderBy('order', 'asc')
+  );
+  const snap = await withTimeout(getDocs(q));
+  return snap.docs.map((d) => ({
+    ...d.data(),
+    id: d.id,
+    createdAt: toDate(d.data().createdAt),
+  })) as MoneyWindow[];
+}
+
+export async function getArchivedWindows(userId: string, tabId: string): Promise<MoneyWindow[]> {
+  const q = query(
+    collection(db, 'windows'),
+    where('userId', '==', userId),
+    where('tabId', '==', tabId),
+    where('archived', '==', true)
+  );
+  const snap = await withTimeout(getDocs(q));
+  return snap.docs.map((d) => ({
+    ...d.data(),
+    id: d.id,
+    createdAt: toDate(d.data().createdAt),
+  })) as MoneyWindow[];
+}
+
+export async function getRecycleBinWindows(userId: string): Promise<MoneyWindow[]> {
+  const q = query(
+    collection(db, 'windows'),
+    where('userId', '==', userId),
+    where('inRecycleBin', '==', true)
+  );
+  const snap = await withTimeout(getDocs(q));
+  return snap.docs.map((d) => ({
+    ...d.data(),
+    id: d.id,
+    createdAt: toDate(d.data().createdAt),
+  })) as MoneyWindow[];
+}
+
+export async function addWindow(
+  userId: string,
+  tabId: string,
+  title: string
+): Promise<string> {
+  const existing = await getWindows(userId, tabId);
+  const order = existing.length;
+  const ref = doc(collection(db, 'windows'));
+  await withTimeout(
+    setDoc(ref, {
+      userId,
+      tabId,
+      title,
+      order,
+      pinned: false,
+      archived: false,
+      inRecycleBin: false,
+      autoMonthly: false,
+      createdAt: serverTimestamp(),
+    })
+  );
+  return ref.id;
+}
+
+export async function updateWindow(id: string, data: Partial<MoneyWindow>): Promise<void> {
+  await withTimeout(updateDoc(doc(db, 'windows', id), { ...data }));
+}
+
+/** Move to recycle bin (soft delete) */
+export async function softDeleteWindow(id: string): Promise<void> {
+  await withTimeout(updateDoc(doc(db, 'windows', id), { inRecycleBin: true }));
+}
+
+/** Restore from recycle bin */
+export async function restoreWindow(id: string): Promise<void> {
+  await withTimeout(updateDoc(doc(db, 'windows', id), { inRecycleBin: false }));
+}
+
+/** Permanently delete window and all its entries */
+export async function deleteWindowPermanently(id: string): Promise<void> {
+  const batch = writeBatch(db);
+  batch.delete(doc(db, 'windows', id));
+  const snap = await getDocs(query(collection(db, 'entries'), where('windowId', '==', id)));
+  snap.docs.forEach((d) => batch.delete(d.ref));
+  await withTimeout(batch.commit());
+}
+
+/**
+ * Ensure current month window exists in Personal tab.
+ * Returns the window id.
+ */
+export async function ensureMonthWindow(userId: string, personalTabId: string): Promise<string> {
+  const key = getMonthKey();
+  const q = query(
+    collection(db, 'windows'),
+    where('userId', '==', userId),
+    where('tabId', '==', personalTabId),
+    where('monthKey', '==', key)
+  );
+  const snap = await withTimeout(getDocs(q));
+  if (!snap.empty) return snap.docs[0].id;
+
+  // Create it
+  const ref = doc(collection(db, 'windows'));
+  await withTimeout(
+    setDoc(ref, {
+      userId,
+      tabId: personalTabId,
+      title: getMonthWindowTitle(),
+      monthKey: key,
+      order: 0,
+      pinned: true,
+      archived: false,
+      inRecycleBin: false,
+      autoMonthly: true,
+      createdAt: serverTimestamp(),
+    })
+  );
+  return ref.id;
+}
+
+// ─── ENTRIES ─────────────────────────────────────────────────────────────────
+
+export async function getEntries(userId: string, windowId: string): Promise<Entry[]> {
+  const q = query(
+    collection(db, 'entries'),
+    where('userId', '==', userId),
+    where('windowId', '==', windowId),
+    orderBy('entryDate', 'desc')
+  );
+  const snap = await withTimeout(getDocs(q));
+  return snap.docs.map((d) => ({
+    ...d.data(),
+    id: d.id,
+    entryDate: toDate(d.data().entryDate),
+    createdAt: toDate(d.data().createdAt),
+    updatedAt: toDate(d.data().updatedAt),
+  })) as Entry[];
+}
+
+export async function addEntry(
+  userId: string,
+  windowId: string,
+  data: {
+    rawText: string;
+    amount: number;
+    note: string;
+    type: string;
+    entryDate: Date;
+  }
+): Promise<string> {
+  const ref = doc(collection(db, 'entries'));
+  await withTimeout(
+    setDoc(ref, {
+      ...data,
+      userId,
+      windowId,
+      entryDate: Timestamp.fromDate(data.entryDate),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+  );
+  return ref.id;
+}
+
+export async function updateEntry(
+  id: string,
+  data: Partial<{
+    rawText: string;
+    amount: number;
+    note: string;
+    type: string;
+    entryDate: Date;
+  }>
+): Promise<void> {
+  const update: Record<string, unknown> = { ...data, updatedAt: serverTimestamp() };
+  if (data.entryDate) update.entryDate = Timestamp.fromDate(data.entryDate);
+  await withTimeout(updateDoc(doc(db, 'entries', id), update));
+}
+
+export async function deleteEntry(id: string): Promise<void> {
+  await withTimeout(deleteDoc(doc(db, 'entries', id)));
+}
+
+/** Search entries by note text across all windows for a user */
+export async function searchEntries(userId: string): Promise<Entry[]> {
+  const q = query(
+    collection(db, 'entries'),
+    where('userId', '==', userId),
+    orderBy('entryDate', 'desc')
+  );
+  const snap = await withTimeout(getDocs(q));
+  return snap.docs.map((d) => ({
+    ...d.data(),
+    id: d.id,
+    entryDate: toDate(d.data().entryDate),
+    createdAt: toDate(d.data().createdAt),
+    updatedAt: toDate(d.data().updatedAt),
+  })) as Entry[];
+}
+
+// ─── PERSONS ─────────────────────────────────────────────────────────────────
 
 export async function getPersons(userId: string): Promise<Person[]> {
   const q = query(
@@ -106,232 +365,101 @@ export async function getPersons(userId: string): Promise<Person[]> {
     orderBy('createdAt', 'asc')
   );
   const snap = await withTimeout(getDocs(q));
-  return snap.docs
-    .map((d) => ({
-      ...d.data(),
-      id: d.id,
-      createdAt: (d.data().createdAt as Timestamp)?.toDate?.() || new Date(),
-      updatedAt: (d.data().updatedAt as Timestamp)?.toDate?.() || new Date(),
-    })) as Person[];
+  return snap.docs.map((d) => ({
+    ...d.data(),
+    id: d.id,
+    createdAt: toDate(d.data().createdAt),
+    updatedAt: toDate(d.data().updatedAt),
+  })) as Person[];
 }
 
 export async function addPerson(
   userId: string,
-  data: { name: string; type: string; note?: string }
+  data: { name: string; note: string }
 ): Promise<string> {
-  if (!userId) throw new Error('User ID is required');
-  const docRef = doc(collection(db, 'persons'));
-  await withTimeout(setDoc(docRef, {
-    ...data,
-    userId,
-    balance: 0,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  }));
-  return docRef.id;
+  const existing = await getPersons(userId);
+  const ref = doc(collection(db, 'persons'));
+  await withTimeout(
+    setDoc(ref, {
+      ...data,
+      userId,
+      order: existing.length,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+  );
+  return ref.id;
 }
 
 export async function updatePerson(id: string, data: Partial<Person>): Promise<void> {
-  await withTimeout(updateDoc(doc(db, 'persons', id), {
-    ...data,
-    updatedAt: serverTimestamp(),
-  }));
+  await withTimeout(updateDoc(doc(db, 'persons', id), { ...data, updatedAt: serverTimestamp() }));
 }
 
-/**
- * Deletes a person and all their associated transactions.
- */
 export async function deletePerson(id: string): Promise<void> {
   const batch = writeBatch(db);
   batch.delete(doc(db, 'persons', id));
-
-  const txQuery = query(collection(db, 'transactions'), where('personId', '==', id));
-  const txSnap = await withTimeout(getDocs(txQuery));
-  txSnap.forEach(d => batch.delete(d.ref));
-
+  const snap = await getDocs(
+    query(collection(db, 'personEntries'), where('personId', '==', id))
+  );
+  snap.docs.forEach((d) => batch.delete(d.ref));
   await withTimeout(batch.commit());
 }
 
-// ===== TRANSACTIONS =====
+// ─── PERSON ENTRIES ──────────────────────────────────────────────────────────
 
-export async function getTransactions(
+export async function getPersonEntries(
   userId: string,
-  limitCount: number = 50,
-  startAfterDoc?: unknown
-): Promise<{ data: Transaction[]; lastDoc: unknown | null }> {
-  const constraints: any[] = [
+  personId: string
+): Promise<PersonEntry[]> {
+  const q = query(
+    collection(db, 'personEntries'),
     where('userId', '==', userId),
-    orderBy('date', 'desc'),
-    limit(limitCount),
-  ];
-
-  if (startAfterDoc) {
-    constraints.push(startAfter(startAfterDoc as any));
-  }
-
-  const q = query(collection(db, 'transactions'), ...constraints);
+    where('personId', '==', personId),
+    orderBy('entryDate', 'desc')
+  );
   const snap = await withTimeout(getDocs(q));
-
-  const data = snap.docs.map((d) => ({
+  return snap.docs.map((d) => ({
     ...d.data(),
     id: d.id,
-    date: (d.data().date as Timestamp)?.toDate?.() || new Date(),
-    createdAt: (d.data().createdAt as Timestamp)?.toDate?.() || new Date(),
-  })) as Transaction[];
-
-  return {
-    data,
-    lastDoc: snap.docs.length === limitCount ? snap.docs[snap.docs.length - 1] : null,
-  };
+    entryDate: toDate(d.data().entryDate),
+    createdAt: toDate(d.data().createdAt),
+    updatedAt: toDate(d.data().updatedAt),
+  })) as PersonEntry[];
 }
 
-export async function addTransaction(
+export async function addPersonEntry(
   userId: string,
-  data: {
-    sectionId: string;
-    personId?: string;
-    type: TransactionType;
-    amount: number;
-    category?: string;
-    date: Date;
-    note?: string;
-    toSectionId?: string;
-    loanDirection?: 'given' | 'received';
-  }
+  personId: string,
+  data: { rawText: string; amount: number; note: string; entryDate: Date }
 ): Promise<string> {
-  const sectionRef = doc(db, 'sections', data.sectionId);
-
-  // Validate section exists before writing
-  const sectionSnap = await getDoc(sectionRef);
-  if (!sectionSnap.exists()) {
-    throw new Error(`Section ${data.sectionId} does not exist.`);
-  }
-
-  const batch = writeBatch(db);
-
-  // Add the transaction
-  const txRef = doc(collection(db, 'transactions'));
-  batch.set(txRef, {
-    ...data,
-    userId,
-    date: Timestamp.fromDate(data.date instanceof Date ? data.date : new Date(data.date)),
-    createdAt: serverTimestamp(),
-  });
-
-  // Update balances based on transaction type
-  switch (data.type) {
-    case 'income':
-      batch.update(sectionRef, {
-        balance: increment(data.amount),
-        updatedAt: serverTimestamp(),
-      });
-      break;
-
-    case 'expense':
-      batch.update(sectionRef, {
-        balance: increment(-data.amount),
-        updatedAt: serverTimestamp(),
-      });
-      break;
-
-    case 'transfer':
-      if (data.toSectionId) {
-        batch.update(sectionRef, {
-          balance: increment(-data.amount),
-          updatedAt: serverTimestamp(),
-        });
-        batch.update(doc(db, 'sections', data.toSectionId), {
-          balance: increment(data.amount),
-          updatedAt: serverTimestamp(),
-        });
-      }
-      break;
-
-    case 'loan':
-      if (data.personId) {
-        const personRef = doc(db, 'persons', data.personId);
-        if (data.loanDirection === 'given') {
-          batch.update(sectionRef, {
-            balance: increment(-data.amount),
-            updatedAt: serverTimestamp(),
-          });
-          batch.update(personRef, {
-            balance: increment(data.amount),
-            updatedAt: serverTimestamp(),
-          });
-        } else {
-          batch.update(sectionRef, {
-            balance: increment(data.amount),
-            updatedAt: serverTimestamp(),
-          });
-          batch.update(personRef, {
-            balance: increment(-data.amount),
-            updatedAt: serverTimestamp(),
-          });
-        }
-      }
-      break;
-  }
-
-  await withTimeout(batch.commit());
-  return txRef.id;
+  const ref = doc(collection(db, 'personEntries'));
+  await withTimeout(
+    setDoc(ref, {
+      ...data,
+      userId,
+      personId,
+      entryDate: Timestamp.fromDate(data.entryDate),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+  );
+  return ref.id;
 }
 
-/**
- * Deletes a transaction and REVERSES its effect on balances atomically.
- */
-export async function deleteTransaction(txId: string): Promise<void> {
-  const txRef = doc(db, 'transactions', txId);
-  const txSnap = await getDoc(txRef);
-
-  if (!txSnap.exists()) return;
-
-  const tx = txSnap.data() as Transaction;
-  const batch = writeBatch(db);
-
-  const sectionRef = doc(db, 'sections', tx.sectionId);
-
-  // Reverse logic
-  switch (tx.type) {
-    case 'income':
-      // Substract the income back
-      batch.update(sectionRef, { balance: increment(-tx.amount) });
-      break;
-    
-    case 'expense':
-      // Add the expense back
-      batch.update(sectionRef, { balance: increment(tx.amount) });
-      break;
-    
-    case 'transfer':
-      if (tx.toSectionId) {
-        // Add back to source, subtract from destination
-        batch.update(sectionRef, { balance: increment(tx.amount) });
-        batch.update(doc(db, 'sections', tx.toSectionId), { balance: increment(-tx.amount) });
-      }
-      break;
-    
-    case 'loan':
-      if (tx.personId) {
-        const personRef = doc(db, 'persons', tx.personId);
-        if (tx.loanDirection === 'given') {
-          // Add back to section, subtract from person's "owes you"
-          batch.update(sectionRef, { balance: increment(tx.amount) });
-          batch.update(personRef, { balance: increment(-tx.amount) });
-        } else {
-          // Subtract from section, add back to person's "you owe"
-          batch.update(sectionRef, { balance: increment(-tx.amount) });
-          batch.update(personRef, { balance: increment(tx.amount) });
-        }
-      }
-      break;
-  }
-
-  batch.delete(txRef);
-  await batch.commit();
+export async function updatePersonEntry(
+  id: string,
+  data: Partial<{ rawText: string; amount: number; note: string; entryDate: Date }>
+): Promise<void> {
+  const update: Record<string, unknown> = { ...data, updatedAt: serverTimestamp() };
+  if (data.entryDate) update.entryDate = Timestamp.fromDate(data.entryDate);
+  await withTimeout(updateDoc(doc(db, 'personEntries', id), update));
 }
 
-// ===== VAULT =====
+export async function deletePersonEntry(id: string): Promise<void> {
+  await withTimeout(deleteDoc(doc(db, 'personEntries', id)));
+}
+
+// ─── VAULT ───────────────────────────────────────────────────────────────────
 
 export async function getVaultItems(userId: string): Promise<VaultItem[]> {
   const q = query(
@@ -340,28 +468,57 @@ export async function getVaultItems(userId: string): Promise<VaultItem[]> {
     orderBy('createdAt', 'desc')
   );
   const snap = await withTimeout(getDocs(q));
-  return snap.docs
-    .map((d) => ({
-      ...d.data(),
-      id: d.id,
-      createdAt: (d.data().createdAt as Timestamp)?.toDate?.() || new Date(),
-      updatedAt: (d.data().updatedAt as Timestamp)?.toDate?.() || new Date(),
-    })) as VaultItem[];
+  return snap.docs.map((d) => ({
+    ...d.data(),
+    id: d.id,
+    createdAt: toDate(d.data().createdAt),
+    updatedAt: toDate(d.data().updatedAt),
+  })) as VaultItem[];
 }
 
 export async function addVaultItem(
   userId: string,
-  data: { type: string; title: string; data: Record<string, string> }
+  data: { type: string; title: string; fields: Record<string, string> }
 ): Promise<string> {
-  const docRef = await withTimeout(addDoc(collection(db, 'vault'), {
-    ...data,
-    userId,
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  }));
-  return docRef.id;
+  const ref = doc(collection(db, 'vault'));
+  await withTimeout(
+    setDoc(ref, {
+      ...data,
+      userId,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+  );
+  return ref.id;
+}
+
+export async function updateVaultItem(
+  id: string,
+  data: Partial<VaultItem>
+): Promise<void> {
+  await withTimeout(
+    updateDoc(doc(db, 'vault', id), { ...data, updatedAt: serverTimestamp() })
+  );
 }
 
 export async function deleteVaultItem(id: string): Promise<void> {
   await withTimeout(deleteDoc(doc(db, 'vault', id)));
+}
+
+// ─── EXPORT HELPERS ──────────────────────────────────────────────────────────
+
+export async function getAllEntriesForWindow(windowId: string): Promise<Entry[]> {
+  const q = query(
+    collection(db, 'entries'),
+    where('windowId', '==', windowId),
+    orderBy('entryDate', 'desc')
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({
+    ...d.data(),
+    id: d.id,
+    entryDate: toDate(d.data().entryDate),
+    createdAt: toDate(d.data().createdAt),
+    updatedAt: toDate(d.data().updatedAt),
+  })) as Entry[];
 }

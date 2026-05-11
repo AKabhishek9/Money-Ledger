@@ -1,111 +1,80 @@
-/**
- * Format currency with ₹ symbol
- */
-export function formatCurrency(amount: number): string {
-  const absAmount = Math.abs(amount);
-  if (absAmount >= 10000000) {
-    return `${amount < 0 ? '-' : ''}₹${(absAmount / 10000000).toFixed(2)}Cr`;
-  }
-  if (absAmount >= 100000) {
-    return `${amount < 0 ? '-' : ''}₹${(absAmount / 100000).toFixed(2)}L`;
-  }
-  return new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(amount);
+/** Format a Date to "May 2026" style */
+export function formatMonthYear(date: Date): string {
+  return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 
-/**
- * Format a date for display
- */
+/** Format a Date to "10 May 2026" */
 export function formatDate(date: Date): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return 'Today';
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
-
-  return date.toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-  });
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-/**
- * Format date for input fields
- */
-export function formatDateInput(date: Date): string {
-  return date.toISOString().split('T')[0];
+/** Format a Date to "10 May" */
+export function formatDateShort(date: Date): string {
+  return date.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
-/**
- * Get month name
- */
-export function getMonthName(monthIndex: number): string {
-  const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-  ];
-  return months[monthIndex];
+/** Format time "9:30 AM" */
+export function formatTime(date: Date): string {
+  return date.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
 }
 
-/**
- * Generate a random color from the palette
- */
-export function getRandomColor(): string {
-  const colors = [
-    '#6c5ce7', '#00b894', '#0984e3', '#e17055',
-    '#fd79a8', '#fdcb6e', '#00cec9', '#a29bfe',
-    '#74b9ff', '#fab1a0',
-  ];
-  return colors[Math.floor(Math.random() * colors.length)];
+/** Get current month-year key like "2026-05" */
+export function getMonthKey(date = new Date()): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
 }
 
-/**
- * Calculate percentage change
- */
-export function percentChange(current: number, previous: number): number {
-  if (previous === 0) return current > 0 ? 100 : 0;
-  return ((current - previous) / Math.abs(previous)) * 100;
+/** Get month window title for auto-generated personal windows */
+export function getMonthWindowTitle(date = new Date()): string {
+  return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 }
 
-/**
- * Truncate text with ellipsis
- */
-export function truncate(str: string, length: number): string {
-  if (str.length <= length) return str;
-  return str.slice(0, length) + '...';
+/** Capitalize first letter */
+export function capitalize(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-/**
- * Debounce function
- */
-export function debounce<T extends (...args: unknown[]) => unknown>(
-  fn: T,
-  delay: number
-): (...args: Parameters<T>) => void {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), delay);
-  };
+/** Clamp a number between min and max */
+export function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
 
-/**
- * Format a relative time string (e.g. "Today", "3 days ago")
- */
-export function formatDistanceToNow(date: Date): string {
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-  if (days === 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return `${days} days ago`;
-  if (days < 30) return `${Math.floor(days / 7)} weeks ago`;
-  return `${Math.floor(days / 30)} months ago`;
+/** Generate a short random ID */
+export function shortId(): string {
+  return Math.random().toString(36).slice(2, 9);
+}
+
+/** Check if a date is today */
+export function isToday(date: Date): boolean {
+  const today = new Date();
+  return (
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
+  );
+}
+
+/** Format date relative: "Today", "Yesterday", or "10 May" */
+export function formatRelativeDate(date: Date): string {
+  if (isToday(date)) return 'Today';
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear()
+  ) {
+    return 'Yesterday';
+  }
+  return formatDateShort(date);
+}
+
+/** Debounce helper */
+export function debounce<T extends (...args: unknown[]) => void>(fn: T, delay: number): T {
+  let timer: ReturnType<typeof setTimeout>;
+  return ((...args: unknown[]) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  }) as T;
 }

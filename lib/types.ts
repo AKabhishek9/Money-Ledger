@@ -1,113 +1,134 @@
-// ===== USER =====
-export interface User {
-  uid: string;
-  email: string;
-  displayName: string | null;
-  photoURL: string | null;
-  createdAt: Date;
-}
+// ===== TABS =====
+export type TabType = 'personal' | 'people' | 'vault' | 'custom';
 
-// ===== SECTIONS (WALLETS) =====
-export type SectionType = 'default' | 'custom';
-
-export interface Section {
+export interface Tab {
   id: string;
   userId: string;
   name: string;
-  type: SectionType;
-  balance: number;
+  type: TabType;
   icon: string;
-  color: string;
+  order: number;
+  pinned: boolean;
+  archived: boolean;
+  isSystem: boolean;
   createdAt: Date;
-  updatedAt: Date;
 }
 
-export const DEFAULT_SECTIONS: Omit<Section, 'id' | 'userId' | 'createdAt' | 'updatedAt'>[] = [
-  { name: 'Daily Expenses', type: 'default', balance: 0, icon: 'wallet', color: '#6c5ce7' },
-  { name: 'Savings', type: 'default', balance: 0, icon: 'piggy-bank', color: '#00b894' },
-  { name: 'Bills', type: 'default', balance: 0, icon: 'receipt', color: '#e17055' },
-  { name: 'Loans', type: 'default', balance: 0, icon: 'handshake', color: '#fdcb6e' },
-];
+// ===== WINDOWS / PAGES =====
+export interface MoneyWindow {
+  id: string;
+  userId: string;
+  tabId: string;
+  title: string;
+  order: number;
+  pinned: boolean;
+  archived: boolean;
+  inRecycleBin: boolean;
+  autoMonthly: boolean;
+  monthKey?: string;
+  createdAt: Date;
+}
+
+// ===== ENTRIES =====
+export type EntryType = 'add' | 'subtract' | 'expression';
+
+export interface Entry {
+  id: string;
+  userId: string;
+  windowId: string;
+  rawText: string;
+  amount: number; // positive or negative, calculated
+  note: string;
+  type: EntryType;
+  entryDate: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  linkedPersonId?: string;
+  linkedPersonName?: string;
+}
+
+// ===== PARSED ENTRY =====
+export interface ParsedEntry {
+  amount: number;
+  note: string;
+  type: EntryType;
+  rawText: string;
+  isValid: boolean;
+  error?: string;
+}
 
 // ===== PERSONS =====
-export type PersonType = 'self' | 'managed' | 'loan';
-
 export interface Person {
   id: string;
   userId: string;
   name: string;
-  type: PersonType;
-  balance: number;
-  note?: string;
+  note: string;
+  order: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
-// ===== TRANSACTIONS =====
-export type TransactionType = 'income' | 'expense' | 'transfer' | 'loan';
-
-export interface Transaction {
+// ===== PERSON ENTRIES =====
+export interface PersonEntry {
   id: string;
   userId: string;
-  sectionId: string;
-  personId?: string;
-  type: TransactionType;
-  amount: number;
-  category?: string;
-  date: Date;
-  note?: string;
-  /** For transfers: destination section */
-  toSectionId?: string;
-  /** For loans: 'given' or 'received' */
-  loanDirection?: 'given' | 'received';
+  personId: string;
+  rawText: string;
+  amount: number; // positive = they owe you, negative = you owe them
+  note: string;
+  entryDate: Date;
   createdAt: Date;
+  updatedAt: Date;
+  linkedEntryId?: string;
+  linkedWindowId?: string;
 }
 
 // ===== VAULT =====
-export type VaultItemType = 'bank' | 'card' | 'note';
+export type VaultType = 'bank' | 'card' | 'note' | 'aadhaar' | 'pan';
 
 export interface VaultItem {
   id: string;
   userId: string;
-  type: VaultItemType;
+  type: VaultType;
   title: string;
-  data: Record<string, string>;
+  fields: Record<string, string>; // key-value pairs
   createdAt: Date;
   updatedAt: Date;
 }
 
-// ===== DASHBOARD =====
-export interface DashboardStats {
-  totalBalance: number;
-  totalIncome: number;
-  totalExpenses: number;
-  savings: number;
-  sectionBalances: { name: string; balance: number; color: string }[];
-  recentTransactions: Transaction[];
-  monthlyData: { month: string; income: number; expense: number }[];
-  categoryBreakdown: { category: string; amount: number; color: string }[];
+// ===== VAULT TEMPLATES =====
+export const VAULT_TEMPLATES: Record<VaultType, { label: string; icon: string; fields: string[] }> = {
+  bank: {
+    label: 'Bank Account',
+    icon: '🏦',
+    fields: ['Bank Name', 'Account Number', 'IFSC Code', 'Branch', 'Account Holder'],
+  },
+  card: {
+    label: 'Card',
+    icon: '💳',
+    fields: ['Card Type', 'Card Number', 'Expiry', 'CVV', 'Card Holder'],
+  },
+  note: {
+    label: 'Secure Note',
+    icon: '📝',
+    fields: ['Content'],
+  },
+  aadhaar: {
+    label: 'Aadhaar',
+    icon: '🪪',
+    fields: ['Aadhaar Number', 'Name', 'DOB', 'Address'],
+  },
+  pan: {
+    label: 'PAN Card',
+    icon: '📄',
+    fields: ['PAN Number', 'Name', 'DOB'],
+  },
+};
+
+// ===== USER =====
+export interface AppUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
 }
-
-// ===== EXPENSE CATEGORIES =====
-export const EXPENSE_CATEGORIES = [
-  { name: 'Food & Dining', icon: '🍕', color: '#e17055' },
-  { name: 'Transportation', icon: '🚗', color: '#0984e3' },
-  { name: 'Shopping', icon: '🛍️', color: '#6c5ce7' },
-  { name: 'Entertainment', icon: '🎮', color: '#fd79a8' },
-  { name: 'Healthcare', icon: '💊', color: '#00b894' },
-  { name: 'Education', icon: '📚', color: '#fdcb6e' },
-  { name: 'Utilities', icon: '💡', color: '#74b9ff' },
-  { name: 'Rent', icon: '🏠', color: '#a29bfe' },
-  { name: 'Travel', icon: '✈️', color: '#00cec9' },
-  { name: 'Other', icon: '📦', color: '#636e72' },
-] as const;
-
-// ===== INCOME CATEGORIES =====
-export const INCOME_CATEGORIES = [
-  { name: 'Salary', icon: '💼', color: '#00b894' },
-  { name: 'Freelance', icon: '💻', color: '#6c5ce7' },
-  { name: 'Investment', icon: '📈', color: '#0984e3' },
-  { name: 'Business', icon: '🏢', color: '#fdcb6e' },
-  { name: 'Gift', icon: '🎁', color: '#fd79a8' },
-  { name: 'Other', icon: '📦', color: '#636e72' },
-] as const;
