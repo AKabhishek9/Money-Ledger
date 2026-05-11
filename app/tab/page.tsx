@@ -63,6 +63,8 @@ function TabContent() {
   const [newWindowTitle, setNewWindowTitle] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<MoneyWindow | null>(null);
   const [showDeleteTab, setShowDeleteTab] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<MoneyWindow | null>(null);
+  const [renameTitle, setRenameTitle] = useState('');
 
   const selectedWindow = windows.find((w) => w.id === windowId) || null;
 
@@ -135,6 +137,14 @@ function TabContent() {
     await softDeleteWindow(w.id);
     setDeleteTarget(null);
     if (windowId === w.id) router.push(`/tab?t=${tabId}`);
+    load();
+  };
+
+  const handleRename = async () => {
+    if (!renameTarget || !renameTitle.trim()) return;
+    await updateWindowStore(renameTarget.id, { title: renameTitle.trim() });
+    setRenameTarget(null);
+    setRenameTitle('');
     load();
   };
 
@@ -227,6 +237,10 @@ function TabContent() {
               onPin={() => { updateWindowStore(w.id, { pinned: !w.pinned }); load(); }}
               onArchive={() => { updateWindowStore(w.id, { archived: true }); load(); }}
               onDelete={() => setDeleteTarget(w)}
+              onRename={() => {
+                setRenameTitle(w.title);
+                setRenameTarget(w);
+              }}
             />
           ))}
         </div>
@@ -252,6 +266,32 @@ function TabContent() {
               style={{ background: newWindowTitle.trim() ? 'var(--color-accent)' : 'var(--color-text-dim)', color: 'var(--color-on-accent)' }}
             >
               Create Page
+            </button>
+          </div>
+        </BottomSheet>
+      )}
+
+      {/* Rename window sheet */}
+      {renameTarget && (
+        <BottomSheet title="Rename Page" onClose={() => setRenameTarget(null)}>
+          <div className="p-4 flex flex-col gap-4">
+            <input
+              type="text"
+              value={renameTitle}
+              onChange={(e) => setRenameTitle(e.target.value)}
+              placeholder="Page title"
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
+              onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+              autoFocus
+            />
+            <button
+              onClick={handleRename}
+              disabled={!renameTitle.trim() || renameTitle.trim() === renameTarget.title}
+              className="w-full py-3 rounded-xl text-sm font-semibold"
+              style={{ background: renameTitle.trim() && renameTitle.trim() !== renameTarget.title ? 'var(--color-accent)' : 'var(--color-text-dim)', color: 'var(--color-on-accent)' }}
+            >
+              Save
             </button>
           </div>
         </BottomSheet>

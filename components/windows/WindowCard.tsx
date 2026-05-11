@@ -12,6 +12,7 @@ interface WindowCardProps {
   onPin?: () => void;
   onArchive?: () => void;
   onDelete?: () => void;
+  onRename?: () => void;
 }
 
 export default function WindowCard({
@@ -22,6 +23,7 @@ export default function WindowCard({
   onPin,
   onArchive,
   onDelete,
+  onRename,
 }: WindowCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const isPositive = total >= 0;
@@ -121,6 +123,13 @@ export default function WindowCard({
               icon={<Archive size={14} />}
               label="Archive"
               onClick={() => { setShowMenu(false); onArchive(); }}
+            />
+          )}
+          {onRename && (
+            <MenuBtn
+              icon={<BookOpen size={14} />}
+              label="Rename"
+              onClick={() => { setShowMenu(false); onRename(); }}
             />
           )}
           {onDelete && (

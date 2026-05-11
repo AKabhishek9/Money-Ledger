@@ -62,6 +62,8 @@ function PersonalContent() {
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [newWindowTitle, setNewWindowTitle] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<MoneyWindow | null>(null);
+  const [renameTarget, setRenameTarget] = useState<MoneyWindow | null>(null);
+  const [renameTitle, setRenameTitle] = useState('');
 
   const selectedWindow = windows.find((w) => w.id === windowId) || null;
 
@@ -89,43 +91,15 @@ function PersonalContent() {
     }
 
     try {
+      await ensureSystemData(user.uid);
       const db = getDb();
       const tabs = await db.tabs.where('userId').equals(user.uid).toArray();
       const pTab = tabs.find((t) => t.type === 'personal') || null;
       setPersonalTab(pTab);
+
       if (!pTab) {
-        await ensureSystemData(user.uid);
-
-        const updatedTabs = await db.tabs.where('userId').equals(user.uid).toArray();
-        const recoveredTab = updatedTabs.find((tab) => tab.type === 'personal') || null;
-
-        if (!recoveredTab) {
-          setLoading(false);
-          return;
-        }
-
-        setPersonalTab(recoveredTab);
-
-        const recoveredWindows = await loadWindows(user.uid, recoveredTab.id);
-        setWindows(recoveredWindows);
-
         setLoading(false);
         return;
-      }
-
-      const monthKey = getMonthKey();
-      const existingMonth = await db.windows
-        .where('tabId')
-        .equals(pTab.id)
-        .filter((w) => w.monthKey === monthKey)
-        .count();
-
-      if (existingMonth === 0) {
-        await addWindow(user.uid, pTab.id, getMonthWindowTitle(), {
-          autoMonthly: true,
-          monthKey,
-          pinned: true,
-        });
       }
 
       const wins = await loadWindows(user.uid, pTab.id);
@@ -172,6 +146,14 @@ function PersonalContent() {
     await softDeleteWindow(w.id);
     setDeleteTarget(null);
     if (windowId === w.id) router.push('/personal');
+    load();
+  };
+
+  const handleRename = async () => {
+    if (!renameTarget || !renameTitle.trim()) return;
+    await updateWindowStore(renameTarget.id, { title: renameTitle.trim() });
+    setRenameTarget(null);
+    setRenameTitle('');
     load();
   };
 
@@ -258,6 +240,10 @@ function PersonalContent() {
               onPin={() => handlePin(w)}
               onArchive={() => handleArchive(w)}
               onDelete={() => setDeleteTarget(w)}
+              onRename={() => {
+                setRenameTitle(w.title);
+                setRenameTarget(w);
+              }}
             />
           ))}
         </div>
@@ -291,6 +277,39 @@ function PersonalContent() {
               }}
             >
               Create Page
+            </button>
+          </div>
+        </BottomSheet>
+      )}
+
+      {/* Rename window sheet */}
+      {renameTarget && (
+        <BottomSheet title="Rename Page" onClose={() => setRenameTarget(null)}>
+          <div className="p-4 flex flex-col gap-4">
+            <input
+              type="text"
+              value={renameTitle}
+              onChange={(e) => setRenameTitle(e.target.value)}
+              placeholder="Page title"
+              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              style={{
+                background: 'var(--color-surface-2)',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text)',
+              }}
+              onKeyDown={(e) => e.key === 'Enter' && handleRename()}
+              autoFocus
+            />
+            <button
+              onClick={handleRename}
+              disabled={!renameTitle.trim() || renameTitle.trim() === renameTarget.title}
+              className="w-full py-3 rounded-xl text-sm font-semibold"
+              style={{
+                background: renameTitle.trim() && renameTitle.trim() !== renameTarget.title ? 'var(--color-accent)' : 'var(--color-text-dim)',
+                color: 'var(--color-on-accent)',
+              }}
+            >
+              Save
             </button>
           </div>
         </BottomSheet>

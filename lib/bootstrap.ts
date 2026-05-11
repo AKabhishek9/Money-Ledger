@@ -5,10 +5,15 @@ import { queueSync } from '@/lib/sync';
 import { v4 as uuid } from 'uuid';
 import { getMonthKey, getMonthWindowTitle } from '@/lib/utils';
 
-export async function ensureSystemData(userId: string): Promise<void> {
-  const db = getDb();
+let bootstrapPromise: Promise<void> | null = null;
 
-  const existingTabs = await db.tabs.where('userId').equals(userId).toArray();
+export async function ensureSystemData(userId: string): Promise<void> {
+  if (bootstrapPromise) return bootstrapPromise;
+
+  bootstrapPromise = (async () => {
+      const db = getDb();
+
+      const existingTabs = await db.tabs.where('userId').equals(userId).toArray();
 
   // Ensure Personal Tab
   let personalTab = existingTabs.find((tab) => tab.type === 'personal');
@@ -69,5 +74,12 @@ export async function ensureSystemData(userId: string): Promise<void> {
       monthWindow.id,
       monthWindow as unknown as Record<string, unknown>
     );
+  }
+  })();
+
+  try {
+    await bootstrapPromise;
+  } finally {
+    bootstrapPromise = null;
   }
 }

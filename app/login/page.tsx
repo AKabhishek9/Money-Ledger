@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight } from 'lucide-react';
 
 export default function LoginPage() {
-  const { user, loading, error, signIn, signUp, signInWithGoogle, clearError } = useAuth();
+  const { user, loading, error, signIn, signUp, signInWithGoogle, resetPassword, clearError } = useAuth();
   const router = useRouter();
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [localError, setLocalError] = useState('');
+  const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
     if (!loading && user) router.replace('/personal');
@@ -51,6 +52,24 @@ export default function LoginPage() {
       await signInWithGoogle();
     } catch {
       // handled in context
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleForgotPw = async () => {
+    if (!email.trim()) {
+      setLocalError('Please enter your email address first.');
+      return;
+    }
+    setSubmitting(true);
+    setLocalError('');
+    clearError();
+    try {
+      await resetPassword(email);
+      setResetSent(true);
+    } catch {
+      // error handled in context
     } finally {
       setSubmitting(false);
     }
@@ -178,6 +197,29 @@ export default function LoginPage() {
               {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
             </button>
           </div>
+
+          {mode === 'login' && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={handleForgotPw}
+                className="text-xs font-medium hover:underline"
+                style={{ color: 'var(--color-text-muted)' }}
+                disabled={submitting}
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
+
+          {resetSent && mode === 'login' && !displayError && (
+            <div
+              className="text-xs p-3 rounded-xl text-center"
+              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text)' }}
+            >
+              Password reset link sent to your email.
+            </div>
+          )}
 
           {displayError && (
             <div

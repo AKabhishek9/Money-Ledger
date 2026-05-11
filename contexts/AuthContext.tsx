@@ -18,6 +18,7 @@ import {
   GoogleAuthProvider,
   signOut as firebaseSignOut,
   updateProfile,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { ensureSystemData } from '@/lib/bootstrap';
@@ -39,6 +40,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   clearError: () => void;
 }
@@ -52,10 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
-      setUser((prev) => {
-        if (prev?.uid === u?.uid) return prev;
-        return u;
-      });
+      setLoading(true);
 
       if (u) {
         await prepareLocalData(u.uid);
@@ -66,6 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         useStore.getState().reset();
       }
 
+      setUser((prev) => {
+        if (prev?.uid === u?.uid) return prev;
+        return u;
+      });
       setLoading(false);
     });
 
@@ -117,6 +120,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const resetPassword = useCallback(async (email: string) => {
+    setError(null);
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Password reset failed.';
+      setError(friendlyError(msg));
+      throw e;
+    }
+  }, []);
+
   const signOut = useCallback(async () => {
     setError(null);
     stopRealtimeSync();
@@ -128,8 +142,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const stableUser = useMemo(() => user, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const value = useMemo(
-    () => ({ user: stableUser, loading, error, signIn, signUp, signInWithGoogle, signOut, clearError }),
-    [stableUser, loading, error, signIn, signUp, signInWithGoogle, signOut, clearError]
+    () => ({ user: stableUser, loading, error, signIn, signUp, signInWithGoogle, resetPassword, signOut, clearError }),
+    [stableUser, loading, error, signIn, signUp, signInWithGoogle, resetPassword, signOut, clearError]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
