@@ -45,7 +45,7 @@ export default function WindowCard({
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full items-center gap-3.5 rounded-2xl px-4 py-3.5 text-left transition-all duration-200 active:opacity-90"
+        className="flex w-full items-center gap-3.5 rounded-2xl pl-4 pr-10 py-3.5 text-left transition-all duration-200 active:opacity-90"
         style={{
           background: 'var(--color-surface)',
           border: '1px solid var(--color-border)',
@@ -74,7 +74,7 @@ export default function WindowCard({
         {/* Amount */}
         <div className="shrink-0 text-right">
           <span
-            className="amount-mono text-base font-semibold tabular-nums"
+            className="amount-mono text-[0.7rem] font-semibold tabular-nums"
             style={{ color: isPositive ? 'var(--color-income)' : 'var(--color-expense)' }}
           >
             {formatAmount(total)}
