@@ -96,7 +96,7 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
   const isPositive = balance > 0;
   const isZero = balance === 0;
   const entriesWithBalance = computeRunningBalance(entries);
-  const displayedEntries = [...entriesWithBalance].reverse();
+  const displayedEntries = entriesWithBalance;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">

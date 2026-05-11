@@ -165,5 +165,5 @@ export function computeRunningBalance<T extends { amount: number; entryDate: Dat
     return { ...entry, runningBalance };
   });
 
-  return withBalance.reverse();
+  return withBalance;
 }

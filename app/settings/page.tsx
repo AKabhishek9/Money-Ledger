@@ -77,11 +77,11 @@ function SettingsContent() {
             {
               icon: <BookOpen size={18} />,
               label: 'Money Ledger',
-              value: 'v2.0.5',
+              value: 'v2.0.6',
             },
             {
               icon: <Shield size={18} />,
-              label: 'Offline-first',
+              label: 'Offline Mode',
               value: 'Active',
               valueColor: 'var(--color-income)',
             },
