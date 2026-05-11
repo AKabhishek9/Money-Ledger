@@ -43,12 +43,12 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [entries]);
 
-  const handleAdd = async (rawText: string, amount: number, note: string) => {
+  const handleAdd = async (rawText: string, amount: number, note: string, type: string, entryDate: Date) => {
     const entry = await localAddPersonEntry(userId, person.id, {
       rawText,
       amount,
       note,
-      entryDate: new Date(),
+      entryDate,
     });
     setEntries((prev) => [entry, ...prev]);
   };

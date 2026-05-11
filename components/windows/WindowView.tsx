@@ -53,6 +53,7 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
     amount: number,
     note: string,
     type: string,
+    entryDate: Date,
     linkedPersonId?: string,
     linkedPersonName?: string
   ) => {
@@ -61,7 +62,7 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
       amount,
       note,
       type,
-      entryDate: new Date(),
+      entryDate,
       linkedPersonId,
       linkedPersonName,
     });
@@ -71,7 +72,7 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
         rawText: `${note || rawText} (from ${w.title})`,
         amount: -amount,
         note: note || rawText,
-        entryDate: new Date(),
+        entryDate,
         linkedEntryId: entry.id,
         linkedWindowId: w.id,
       });
@@ -210,7 +211,6 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
                   key={entry.id}
                   entry={entry}
                   runningBalance={entry.runningBalance}
-                  showDate={false}
                   onDelete={() => handleDelete(entry)}
                   onEdit={() => setEditEntry(entry)}
                 />

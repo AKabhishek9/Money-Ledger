@@ -11,6 +11,7 @@ interface EntryInputProps {
     amount: number,
     note: string,
     type: string,
+    entryDate: Date,
     linkedPersonId?: string,
     linkedPersonName?: string
   ) => Promise<void>;
@@ -25,6 +26,7 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
   const [loading, setLoading] = useState(false);
   const [linkedPerson, setLinkedPerson] = useState<Person | null>(null);
   const [showPersonPicker, setShowPersonPicker] = useState(false);
+  const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const combined = `${amountInput} ${noteInput}`.trim();
@@ -37,9 +39,10 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
 
     setLoading(true);
     try {
-      await onAdd(p.rawText, p.amount, p.note, p.type, linkedPerson?.id, linkedPerson?.name);
+      await onAdd(p.rawText, p.amount, p.note, p.type, new Date(entryDate), linkedPerson?.id, linkedPerson?.name);
       setAmountInput('');
       setNoteInput('');
+      setEntryDate(new Date().toISOString().split('T')[0]);
       setLinkedPerson(null);
       setShowPersonPicker(false);
       inputRef.current?.focus();
@@ -102,7 +105,21 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
       )}
 
       {persons && persons.length > 0 && (
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          {/* Date Picker */}
+          <input
+            type="date"
+            value={entryDate}
+            onChange={(e) => setEntryDate(e.target.value)}
+            disabled={disabled || loading}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs outline-none"
+            style={{
+              background: 'var(--color-surface-2)',
+              color: 'var(--color-text-dim)',
+              border: '1px solid var(--color-border)',
+              cursor: 'pointer'
+            }}
+          />
           {linkedPerson ? (
             <div
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium max-w-full"
@@ -130,6 +147,22 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
               Link person
             </button>
           )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 mb-2">
+          <input
+            type="date"
+            value={entryDate}
+            onChange={(e) => setEntryDate(e.target.value)}
+            disabled={disabled || loading}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs outline-none"
+            style={{
+              background: 'var(--color-surface-2)',
+              color: 'var(--color-text-dim)',
+              border: '1px solid var(--color-border)',
+              cursor: 'pointer'
+            }}
+          />
         </div>
       )}
 
