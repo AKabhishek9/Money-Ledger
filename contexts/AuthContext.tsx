@@ -20,6 +20,7 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { ensureSystemData } from '@/lib/bootstrap';
 import { initializeUserData } from '@/lib/firestore';
 import { hydrateFromFirestore, setupSyncListener } from '@/lib/sync';
 import { useStore } from '@/store/useStore';
@@ -133,8 +134,9 @@ export function useAuth() {
 async function prepareLocalData(userId: string): Promise<void> {
   try {
     await hydrateFromFirestore(userId);
+    await ensureSystemData(userId);
   } catch (error) {
-    console.warn('Firestore hydration skipped:', error);
+    console.warn('Local data preparation skipped:', error);
   } finally {
     await useStore.getState().init(userId);
   }

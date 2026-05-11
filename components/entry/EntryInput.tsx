@@ -19,31 +19,34 @@ interface EntryInputProps {
   persons?: Person[];
 }
 
-export default function EntryInput({ onAdd, placeholder, disabled, persons }: EntryInputProps) {
-  const [value, setValue] = useState('');
+export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps) {
+  const [amountInput, setAmountInput] = useState('');
+  const [noteInput, setNoteInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [linkedPerson, setLinkedPerson] = useState<Person | null>(null);
   const [showPersonPicker, setShowPersonPicker] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const parsed = value.trim() ? parseEntry(value) : null;
+  const combined = `${amountInput} ${noteInput}`.trim();
+  const parsed = combined ? parseEntry(combined) : null;
 
   const handleSubmit = useCallback(async () => {
-    if (!value.trim() || loading) return;
-    const p = parseEntry(value);
+    if (!combined || loading) return;
+    const p = parseEntry(combined);
     if (!p.isValid) return;
 
     setLoading(true);
     try {
       await onAdd(p.rawText, p.amount, p.note, p.type, linkedPerson?.id, linkedPerson?.name);
-      setValue('');
+      setAmountInput('');
+      setNoteInput('');
       setLinkedPerson(null);
       setShowPersonPicker(false);
       inputRef.current?.focus();
     } finally {
       setLoading(false);
     }
-  }, [value, loading, linkedPerson, onAdd]);
+  }, [combined, loading, linkedPerson, onAdd]);
 
   const handleKey = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSubmit();
@@ -53,37 +56,43 @@ export default function EntryInput({ onAdd, placeholder, disabled, persons }: En
   const isExpense = parsed?.isValid && parsed.amount < 0;
 
   return (
-    <div
-      className="sticky bottom-0 left-0 right-0 p-3 z-20"
-      style={{
-        background: 'var(--color-nav)',
-        borderTop: '1px solid var(--color-border)',
-      }}
-    >
+    <div className="p-3 z-20" style={{ background: 'var(--color-nav)' }}>
       {/* Preview */}
       {parsed?.isValid && (
         <div
           className="flex items-center justify-between px-3 py-1.5 rounded-xl mb-2"
           style={{
-            background: isIncome ? 'var(--color-income-bg)' : isExpense ? 'var(--color-expense-bg)' : 'var(--color-surface-2)',
+            background: isIncome
+              ? 'var(--color-income-bg)'
+              : isExpense
+              ? 'var(--color-expense-bg)'
+              : 'var(--color-surface-2)',
           }}
         >
-          <span
-            className="text-sm font-medium truncate"
-            style={{ color: 'var(--color-text-muted)' }}
-          >
-            {parsed.note || (parsed.type === 'expression' ? 'Expression' : parsed.type === 'add' ? 'Income' : 'Expense')}
+          <span className="text-sm font-medium truncate" style={{ color: 'var(--color-text-muted)' }}>
+            {parsed.note ||
+              (parsed.type === 'expression'
+                ? 'Expression'
+                : parsed.type === 'add'
+                ? 'Income'
+                : 'Expense')}
           </span>
           <span
             className="font-mono font-semibold text-sm ml-3 shrink-0"
-            style={{ color: isIncome ? 'var(--color-income)' : isExpense ? 'var(--color-expense)' : 'var(--color-text)' }}
+            style={{
+              color: isIncome
+                ? 'var(--color-income)'
+                : isExpense
+                ? 'var(--color-expense)'
+                : 'var(--color-text)',
+            }}
           >
             {formatAmount(parsed.amount)}
           </span>
         </div>
       )}
 
-      {parsed && !parsed.isValid && value.trim() && (
+      {parsed && !parsed.isValid && combined && (
         <div
           className="px-3 py-1.5 rounded-xl mb-2 text-xs"
           style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}
@@ -168,9 +177,9 @@ export default function EntryInput({ onAdd, placeholder, disabled, persons }: En
       )}
 
       {/* Input row */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 min-w-0">
         <div
-          className="flex-1 flex items-center gap-2 rounded-xl px-3"
+          className="flex-1 flex items-center gap-2 rounded-xl px-3 min-w-0"
           style={{
             background: 'var(--color-surface-2)',
             border: `1px solid ${
@@ -186,12 +195,12 @@ export default function EntryInput({ onAdd, placeholder, disabled, persons }: En
           <input
             ref={inputRef}
             type="text"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
+            value={amountInput}
+            onChange={(e) => setAmountInput(e.target.value)}
             onKeyDown={handleKey}
-            placeholder={placeholder || '+5000 salary  ·  -1200 ration  ·  5000-200'}
+            placeholder="-1200"
             disabled={disabled || loading}
-            className="flex-1 py-3 text-sm outline-none bg-transparent font-mono"
+            className="w-[60%] min-w-0 py-3 text-sm outline-none bg-transparent font-mono"
             style={{
               color: 'var(--color-text)',
               caretColor: 'var(--color-accent)',
@@ -201,14 +210,39 @@ export default function EntryInput({ onAdd, placeholder, disabled, persons }: En
             spellCheck={false}
             inputMode="text"
           />
-          {value && (
-            <button onClick={() => setValue('')} style={{ color: 'var(--color-text-muted)' }}>
+          <input
+            type="text"
+            value={noteInput}
+            onChange={(e) => setNoteInput(e.target.value)}
+            onKeyDown={handleKey}
+            placeholder="ration"
+            disabled={disabled || loading}
+            className="w-[40%] min-w-0 py-3 text-sm outline-none bg-transparent"
+            style={{
+              color: 'var(--color-text)',
+              caretColor: 'var(--color-accent)',
+            }}
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            inputMode="text"
+          />
+          {(amountInput || noteInput) && (
+            <button
+              type="button"
+              onClick={() => {
+                setAmountInput('');
+                setNoteInput('');
+              }}
+              style={{ color: 'var(--color-text-muted)' }}
+            >
               <X size={16} />
             </button>
           )}
         </div>
 
         <button
+          type="button"
           onClick={handleSubmit}
           disabled={!parsed?.isValid || loading}
           className="p-3 rounded-xl transition-all duration-150 shrink-0"

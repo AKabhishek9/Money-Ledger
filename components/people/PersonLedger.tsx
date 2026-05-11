@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Download } from 'lucide-react';
 import type { Person, PersonEntry } from '@/lib/types';
 import {
@@ -26,6 +26,7 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
   const [entries, setEntries] = useState<PersonEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [editEntry, setEditEntry] = useState<PersonEntry | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -37,6 +38,10 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
   }, [person.id]);
 
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [entries]);
 
   const handleAdd = async (rawText: string, amount: number, note: string) => {
     const entry = await localAddPersonEntry(userId, person.id, {
@@ -74,9 +79,10 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
   const isPositive = balance > 0;
   const isZero = balance === 0;
   const entriesWithBalance = computeRunningBalance(entries);
+  const displayedEntries = [...entriesWithBalance].reverse();
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-[100dvh] overflow-hidden">
       {/* Balance header */}
       <div
         className="px-4 py-4 shrink-0"
@@ -177,7 +183,7 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
       </div>
 
       {/* Entries */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto min-h-0">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <p className="text-sm loading-pulse" style={{ color: 'var(--color-text-muted)' }}>
@@ -195,22 +201,33 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
             </p>
           </div>
         ) : (
-          entriesWithBalance.map((entry) => (
-            <EntryItem
-              key={entry.id}
-              entry={entry}
-              runningBalance={entry.runningBalance}
-              onDelete={() => handleDelete(entry)}
-              onEdit={() => setEditEntry(entry)}
-            />
-          ))
+          <>
+            {displayedEntries.map((entry) => (
+              <EntryItem
+                key={entry.id}
+                entry={entry}
+                runningBalance={entry.runningBalance}
+                onDelete={() => handleDelete(entry)}
+                onEdit={() => setEditEntry(entry)}
+              />
+            ))}
+            <div ref={bottomRef} />
+          </>
         )}
       </div>
 
-      <EntryInput
-        onAdd={handleAdd}
-        placeholder="+5000 lent money  ·  -2000 received back"
-      />
+      <div
+        className="shrink-0 border-t"
+        style={{
+          borderColor: 'var(--color-border)',
+          background: 'var(--color-background, var(--color-bg))',
+        }}
+      >
+        <EntryInput
+          onAdd={handleAdd}
+          placeholder="+5000 lent money  ·  -2000 received back"
+        />
+      </div>
 
       {editEntry && (
         <EditEntrySheet

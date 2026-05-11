@@ -11,6 +11,7 @@ import WindowView from '@/components/windows/WindowView';
 import BottomSheet from '@/components/ui/BottomSheet';
 import Confirm from '@/components/ui/Confirm';
 import { useAuth } from '@/contexts/AuthContext';
+import { ensureSystemData } from '@/lib/bootstrap';
 import { getDb } from '@/lib/db';
 import { localGetEntries } from '@/lib/entries';
 import { getMonthKey, getMonthWindowTitle } from '@/lib/utils';
@@ -58,7 +59,25 @@ function PersonalContent() {
       const tabs = await db.tabs.where('userId').equals(user.uid).toArray();
       const pTab = tabs.find((t) => t.type === 'personal') || null;
       setPersonalTab(pTab);
-      if (!pTab) { setLoading(false); return; }
+      if (!pTab) {
+        await ensureSystemData(user.uid);
+
+        const updatedTabs = await db.tabs.where('userId').equals(user.uid).toArray();
+        const recoveredTab = updatedTabs.find((tab) => tab.type === 'personal') || null;
+
+        if (!recoveredTab) {
+          setLoading(false);
+          return;
+        }
+
+        setPersonalTab(recoveredTab);
+
+        const recoveredWindows = await loadWindows(user.uid, recoveredTab.id);
+        setWindows(recoveredWindows);
+
+        setLoading(false);
+        return;
+      }
 
       const monthKey = getMonthKey();
       const existingMonth = await db.windows

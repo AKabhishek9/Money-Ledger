@@ -105,7 +105,12 @@ export async function hydrateFromFirestore(userId: string): Promise<void> {
 
   const db = getDb();
   const existingTabs = await db.tabs.where('userId').equals(userId).count();
-  if (existingTabs > 0) return;
+
+  const existingWindows = await db.windows.where('userId').equals(userId).count();
+
+  if (existingTabs > 0 && existingWindows > 0) {
+    return;
+  }
 
   const collections: SyncCollection[] = [
     'tabs',
