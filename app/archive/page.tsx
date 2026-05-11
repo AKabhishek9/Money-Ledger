@@ -110,7 +110,7 @@ function ArchiveContent() {
                 style={{
                   background: active ? 'var(--color-surface)' : 'transparent',
                   color: active ? 'var(--color-text)' : 'var(--color-text-muted)',
-                  boxShadow: active ? '0 1px 0 rgba(255,255,255,0.06) inset' : undefined,
+                  boxShadow: active ? '0 1px 0 rgba(74, 74, 74, 0.08) inset' : undefined,
                 }}
               >
                 {v === 'archive' ? `Archive (${archived.length})` : `Trash (${recycled.length})`}

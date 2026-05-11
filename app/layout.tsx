@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: 'Money Ledger - Personal Ledger',
   description: 'Your offline-first smart accounting notebook',
   icons: { icon: '/icon.png' },
-  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Money Ledger' },
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Money Ledger' },
 };
 
 export const viewport: Viewport = {
@@ -14,7 +14,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: '#0b0b12',
+  themeColor: '#ffffe3',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -75,7 +75,7 @@ export default function EditEntrySheet({ entry, onSave, onClose }: EditEntryShee
             className="flex-1 py-3 rounded-xl text-sm font-semibold"
             style={{
               background: parsed.isValid ? 'var(--color-accent)' : 'var(--color-text-dim)',
-              color: '#fff',
+              color: 'var(--color-on-accent)',
             }}
           >
             Save Changes

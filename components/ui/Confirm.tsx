@@ -22,7 +22,7 @@ export default function Confirm({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-6 animate-fade-in"
-      style={{ background: 'rgba(0,0,0,0.75)' }}
+      style={{ background: 'var(--color-modal-backdrop)' }}
     >
       <div
         className="w-full max-w-sm rounded-2xl p-5 animate-scale-in"
@@ -50,7 +50,7 @@ export default function Confirm({
             className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
             style={{
               background: danger ? 'var(--color-expense)' : 'var(--color-accent)',
-              color: '#fff',
+              color: 'var(--color-on-accent)',
             }}
           >
             {confirmLabel}

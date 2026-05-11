@@ -244,7 +244,7 @@ function PeopleContent() {
               className="w-full py-3 rounded-xl text-sm font-semibold"
               style={{
                 background: newName.trim() ? 'var(--color-accent)' : 'var(--color-text-dim)',
-                color: '#fff',
+                color: 'var(--color-on-accent)',
               }}
             >
               Add Person
@@ -296,7 +296,7 @@ function PeopleContent() {
                 className="flex-1 py-3 rounded-xl text-sm font-semibold"
                 style={{
                   background: newName.trim() ? 'var(--color-accent)' : 'var(--color-text-dim)',
-                  color: '#fff',
+                  color: 'var(--color-on-accent)',
                 }}
               >
                 Save

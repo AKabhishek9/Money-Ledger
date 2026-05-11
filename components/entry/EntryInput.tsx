@@ -286,7 +286,7 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
           style={{
             background:
               parsed?.isValid && !loading ? 'var(--color-accent)' : 'var(--color-surface-2)',
-            color: parsed?.isValid && !loading ? '#fff' : 'var(--color-text-dim)',
+            color: parsed?.isValid && !loading ? 'var(--color-on-accent)' : 'var(--color-text-dim)',
           }}
           aria-label="Save entry"
         >

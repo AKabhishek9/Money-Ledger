@@ -26,7 +26,7 @@ export default function BottomSheet({ title, onClose, children, height = 'auto' 
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col justify-end animate-fade-in"
-      style={{ background: 'rgba(0,0,0,0.7)' }}
+      style={{ background: 'var(--color-sheet-backdrop)' }}
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div

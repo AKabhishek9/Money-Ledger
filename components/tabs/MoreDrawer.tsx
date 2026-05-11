@@ -130,7 +130,7 @@ export default function MoreDrawer({ onClose }: MoreDrawerProps) {
                 className="flex-1 py-2 rounded-xl text-sm font-semibold"
                 style={{
                   background: newTabName.trim() ? 'var(--color-accent)' : 'var(--color-text-dim)',
-                  color: '#fff',
+                  color: 'var(--color-on-accent)',
                 }}
               >
                 {adding ? 'Creating…' : 'Create'}

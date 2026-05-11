@@ -135,7 +135,7 @@ export default function WindowCard({
       )}
 
       {showMenu && (
-        <div className="fixed inset-0 z-50 bg-black/20" aria-hidden onClick={() => setShowMenu(false)} />
+        <div className="fixed inset-0 z-50" style={{ background: 'var(--color-overlay-scrim)' }} aria-hidden onClick={() => setShowMenu(false)} />
       )}
     </div>
   );

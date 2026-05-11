@@ -135,7 +135,7 @@ export default function VaultForm({ onSave, onClose }: VaultFormProps) {
             className="flex-1 py-3 rounded-xl text-sm font-semibold"
             style={{
               background: saving || !title.trim() ? 'var(--color-text-dim)' : 'var(--color-accent)',
-              color: '#fff',
+              color: 'var(--color-on-accent)',
             }}
           >
             {saving ? 'Saving…' : 'Save to Vault'}

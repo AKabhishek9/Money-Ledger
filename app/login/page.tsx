@@ -99,7 +99,7 @@ export default function LoginPage() {
               className="flex-1 py-2 text-sm font-medium rounded-lg transition-all duration-150"
               style={{
                 background: mode === m ? 'var(--color-accent)' : 'transparent',
-                color: mode === m ? '#fff' : 'var(--color-text-muted)',
+                color: mode === m ? 'var(--color-on-accent)' : 'var(--color-text-muted)',
               }}
             >
               {m === 'login' ? 'Sign In' : 'Sign Up'}
@@ -194,7 +194,7 @@ export default function LoginPage() {
             className="flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-opacity"
             style={{
               background: submitting ? 'var(--color-text-dim)' : 'var(--color-accent)',
-              color: '#fff',
+              color: 'var(--color-on-accent)',
               opacity: submitting ? 0.7 : 1,
             }}
           >

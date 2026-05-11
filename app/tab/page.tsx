@@ -247,7 +247,7 @@ function TabContent() {
               onClick={handleAddWindow}
               disabled={!newWindowTitle.trim()}
               className="w-full py-3 rounded-xl text-sm font-semibold"
-              style={{ background: newWindowTitle.trim() ? 'var(--color-accent)' : 'var(--color-text-dim)', color: '#fff' }}
+              style={{ background: newWindowTitle.trim() ? 'var(--color-accent)' : 'var(--color-text-dim)', color: 'var(--color-on-accent)' }}
             >
               Create Page
             </button>
