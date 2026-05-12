@@ -127,8 +127,26 @@ function PersonalContent() {
       setWindows(wins);
       setLoading(false);
 
-      Promise.all(
-        wins.map(async (w) => {
+      wins.forEach(async (w) => {
+        const entries = await localGetEntries(w.id);
+        setWindowStats((prev) => ({
+          ...prev,
+          [w.id]: {
+            total: entries.reduce((s, e) => s + e.amount, 0),
+            count: entries.length,
+          },
+        }));
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [user, addWindow, loadWindows]);
+
+  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const handleVisible = () => {
+      if (document.visibilityState === 'visible' && windows.length > 0) {
+        windows.forEach(async (w) => {
           const entries = await localGetEntries(w.id);
           setWindowStats((prev) => ({
             ...prev,
@@ -137,14 +155,13 @@ function PersonalContent() {
               count: entries.length,
             },
           }));
-        })
-      ).catch(() => undefined);
-    } finally {
-      setLoading(false);
-    }
-  }, [user, addWindow, loadWindows]);
+        });
+      }
+    };
 
-  useEffect(() => { load(); }, [load]);
+    document.addEventListener('visibilitychange', handleVisible);
+    return () => document.removeEventListener('visibilitychange', handleVisible);
+  }, [windows]);
 
   const handleAddWindow = async () => {
     if (!user || !personalTab || !newWindowTitle.trim()) return;

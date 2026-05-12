@@ -22,7 +22,6 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { ensureSystemData } from '@/lib/bootstrap';
-import { getDb } from '@/lib/db';
 import { initializeUserData } from '@/lib/firestore';
 import {
   hydrateFromFirestore,
@@ -157,32 +156,19 @@ export function useAuth() {
 }
 
 async function prepareLocalData(userId: string): Promise<void> {
-  const db = getDb();
-  const localCount = await db.tabs.where('userId').equals(userId).count();
-
-  if (localCount > 0) {
-    await ensureSystemData(userId);
-    await useStore.getState().init(userId);
-
-    Promise.resolve()
-      .then(async () => {
-        await processSyncQueue();
-        await hydrateFromFirestore(userId);
-        await useStore.getState().init(userId);
-      })
-      .catch(() => undefined);
-
-    return;
+  try {
+    await processSyncQueue();
+  } catch (error) {
+    console.warn('Sync queue processing skipped:', error);
   }
 
   try {
-    await processSyncQueue();
     await hydrateFromFirestore(userId);
-    await ensureSystemData(userId);
   } catch (error) {
-    console.warn('Preparation partial failure:', error);
+    console.warn('Hydration partial failure:', error);
   }
 
+  await ensureSystemData(userId);
   await useStore.getState().init(userId);
 }
 
