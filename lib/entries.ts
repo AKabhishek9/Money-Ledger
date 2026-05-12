@@ -30,7 +30,6 @@ export async function localAddEntry(
   data: AddEntryInput
 ): Promise<Entry> {
   const db = getDb();
-  const { v4: uuid } = await import('uuid');
   const now = new Date();
   const entry: Entry = {
     id: uuid(),
@@ -58,7 +57,6 @@ export async function localAddPersonEntry(
   data: AddPersonEntryInput
 ): Promise<PersonEntry> {
   const db = getDb();
-  const { v4: uuid } = await import('uuid');
   const now = new Date();
   const entry: PersonEntry = {
     id: uuid(),

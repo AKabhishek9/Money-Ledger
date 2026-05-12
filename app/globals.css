@@ -284,3 +284,14 @@ input[type='date']::-webkit-calendar-picker-indicator {
   to { transform: rotate(360deg); }
 }
 
+
+/* Prevent browser from scrolling page content when mobile keyboard opens.
+   The app uses dvh units and fixed layout - keyboard should not affect scroll position */
+@supports (height: 100dvh) {
+  html, body {
+    height: 100dvh;
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+  }
+}

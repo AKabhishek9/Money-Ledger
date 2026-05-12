@@ -1,8 +1,8 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import AuthGuard from '@/components/auth/AuthGuard';
 import AppLayout from '@/components/layout/AppLayout';
 import Header from '@/components/layout/Header';
@@ -61,10 +61,12 @@ function PersonalContent() {
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [newWindowTitle, setNewWindowTitle] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<MoneyWindow | null>(null);
+  const [archiveTarget, setArchiveTarget] = useState<MoneyWindow | null>(null);
   const [renameTarget, setRenameTarget] = useState<MoneyWindow | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
 
   const selectedWindow = windows.find((w) => w.id === windowId) || null;
+  const prevWindowIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!cachedPersonalTab) return;
@@ -75,6 +77,26 @@ function PersonalContent() {
     }
   }, [cachedPersonalTab, cachedPersonalWindows, windowsByTabId]);
 
+
+  useEffect(() => {
+    const prev = prevWindowIdRef.current;
+    prevWindowIdRef.current = windowId;
+
+    if (prev !== null && windowId === null && windows.length > 0) {
+      Promise.all(
+        windows.map(async (w) => {
+          const entries = await localGetEntries(w.id);
+          setWindowStats((prevStats) => ({
+            ...prevStats,
+            [w.id]: {
+              total: entries.reduce((sum, entry) => sum + entry.amount, 0),
+              count: entries.length,
+            },
+          }));
+        })
+      ).catch(() => undefined);
+    }
+  }, [windowId, windows]);
   const load = useCallback(async () => {
     if (!user) return;
     const storeState = useStore.getState();
@@ -167,14 +189,11 @@ function PersonalContent() {
           onBack={() => router.push('/personal')}
           rightAction={
             <button
-              onClick={() => {
-                updateWindowStore(selectedWindow.id, { archived: true });
-                router.push('/personal');
-              }}
+              onClick={() => setArchiveTarget(selectedWindow)}
               className="flex h-10 w-10 items-center justify-center rounded-full"
               style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}
             >
-              <Trash2 size={18} />
+              <Archive size={18} />
             </button>
           }
         />
@@ -186,6 +205,19 @@ function PersonalContent() {
             persons={persons}
           />
         </div>
+        {archiveTarget && (
+          <Confirm
+            title="Archive this page?"
+            message={`"${archiveTarget.title}" will be moved to archive.`}
+            confirmLabel="Archive"
+            onConfirm={() => {
+              updateWindowStore(archiveTarget.id, { archived: true });
+              setArchiveTarget(null);
+              router.push('/personal');
+            }}
+            onCancel={() => setArchiveTarget(null)}
+          />
+        )}
       </div>
     );
   }

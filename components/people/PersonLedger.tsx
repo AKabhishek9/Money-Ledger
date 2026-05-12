@@ -27,6 +27,8 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
   const [loading, setLoading] = useState(true);
   const [editEntry, setEditEntry] = useState<PersonEntry | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const prevLengthRef = useRef(0);
+  const didInitialEntriesLoadRef = useRef(false);
 
   const load = useCallback(async () => {
     try {
@@ -57,8 +59,15 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
   }, [load]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [entries]);
+    if (didInitialEntriesLoadRef.current && entries.length > prevLengthRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    if (!loading) {
+      didInitialEntriesLoadRef.current = true;
+    }
+    prevLengthRef.current = entries.length;
+  }, [entries.length, loading]);
 
   const handleAdd = async (rawText: string, amount: number, note: string, type: string, entryDate: Date) => {
     const entry = await localAddPersonEntry(userId, person.id, {

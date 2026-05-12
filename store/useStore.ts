@@ -109,7 +109,6 @@ export const useStore = create<StoreState>((set, get) => ({
 
   addTab: async (userId, data) => {
     const db = getDb();
-    const { v4: uuid } = await import('uuid');
     const id = uuid();
     const now = new Date();
     const order = await db.tabs.where('userId').equals(userId).count();
@@ -186,7 +185,6 @@ export const useStore = create<StoreState>((set, get) => ({
 
   addWindow: async (userId, tabId, title, extra = {}) => {
     const db = getDb();
-    const { v4: uuid } = await import('uuid');
     const id = uuid();
     const order = await db.windows.where('tabId').equals(tabId).count();
     const window: MoneyWindow = {
@@ -275,7 +273,6 @@ export const useStore = create<StoreState>((set, get) => ({
 
   addPerson: async (userId, name, note) => {
     const db = getDb();
-    const { v4: uuid } = await import('uuid');
     const id = uuid();
     const now = new Date();
     const order = await db.persons.where('userId').equals(userId).count();

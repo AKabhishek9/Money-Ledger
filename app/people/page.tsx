@@ -1,8 +1,8 @@
 'use client';
 
-import { Suspense, useState, useEffect, useCallback } from 'react';
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Plus, Download } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import AuthGuard from '@/components/auth/AuthGuard';
 import AppLayout from '@/components/layout/AppLayout';
 import Header from '@/components/layout/Header';
@@ -52,6 +52,7 @@ function PeopleContent() {
   const [deleteTarget, setDeleteTarget] = useState<Person | null>(null);
 
   const selectedPerson = persons.find((p) => p.id === personId) || null;
+  const prevPersonIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (cachedPersons.length === 0) return;
@@ -123,28 +124,6 @@ function PeopleContent() {
           subtitle="Personal Ledger"
           showBack
           onBack={() => router.push('/people')}
-          rightAction={
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {/* CSV handled inside PersonLedger */}}
-                className="flex h-9 items-center gap-1 rounded-full px-3 text-[0.6875rem] font-bold uppercase tracking-wide"
-                style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
-              >
-                <Download size={12} strokeWidth={2.5} />
-                CSV
-              </button>
-              <button
-                type="button"
-                onClick={() => {/* PDF handled inside PersonLedger */}}
-                className="flex h-9 items-center gap-1 rounded-full px-3 text-[0.6875rem] font-bold uppercase tracking-wide"
-                style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
-              >
-                <Download size={12} strokeWidth={2.5} />
-                PDF
-              </button>
-            </div>
-          }
         />
         <div className="flex-1 overflow-hidden flex flex-col">
           <PersonLedger person={selectedPerson} userId={user!.uid} />
