@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Download } from 'lucide-react';
 import type { Entry, MoneyWindow, Person } from '@/lib/types';
 import {
@@ -32,6 +32,8 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
   const [loading, setLoading] = useState(true);
   const [editEntry, setEditEntry] = useState<Entry | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const prevLengthRef = useRef(0);
+  const didInitialEntriesLoadRef = useRef(false);
 
   const load = useCallback(async () => {
     try {
@@ -63,8 +65,15 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
   }, [load]);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [entries]);
+    if (didInitialEntriesLoadRef.current && entries.length > prevLengthRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    if (!loading) {
+      didInitialEntriesLoadRef.current = true;
+    }
+    prevLengthRef.current = entries.length;
+  }, [entries.length, loading]);
 
   const handleAdd = async (
     rawText: string,
@@ -122,19 +131,27 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
     );
   };
 
-  const total = calcTotal(entries.map((e) => e.amount));
-  const isPositive = total >= 0;
-  const incomeTotal = calcTotal(entries.filter((e) => e.amount > 0).map((e) => e.amount));
-  const expenseTotal = calcTotal(entries.filter((e) => e.amount < 0).map((e) => e.amount));
-  const entriesWithBalance = computeRunningBalance(entries);
+  const { total, incomeTotal, expenseTotal, entriesWithBalance, grouped } = useMemo(() => {
+    const t = calcTotal(entries.map((e) => e.amount));
+    const inc = calcTotal(entries.filter((e) => e.amount > 0).map((e) => e.amount));
+    const exp = calcTotal(entries.filter((e) => e.amount < 0).map((e) => e.amount));
+    const withBalance = computeRunningBalance(entries);
+    const grp = withBalance.reduce<Record<string, typeof withBalance>>((acc, e) => {
+      const key = formatDate(e.entryDate);
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(e);
+      return acc;
+    }, {});
 
-  // Group entries by date label
-  const grouped = entriesWithBalance.reduce<Record<string, typeof entriesWithBalance>>((acc, e) => {
-    const key = formatDate(e.entryDate);
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(e);
-    return acc;
-  }, {});
+    return {
+      total: t,
+      incomeTotal: inc,
+      expenseTotal: exp,
+      entriesWithBalance: withBalance,
+      grouped: grp,
+    };
+  }, [entries]);
+  const isPositive = total >= 0;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -191,7 +208,7 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
           {/* Stats row */}
           <div className="mt-4 flex gap-6">
             <Stat label="Income" value={incomeTotal} color="var(--color-income)" />
-            <Stat label="Expense" value={expenseTotal} color="var(--color-expense)" />
+            <Stat label="Expense" value={Math.abs(expenseTotal)} color="var(--color-expense)" />
             <Stat label="Entries" value={entries.length} isCount />
           </div>
         </div>
@@ -200,10 +217,31 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
       {/* Entries list */}
       <div className="flex-1 overflow-y-auto min-h-0">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <p className="text-sm loading-pulse" style={{ color: 'var(--color-text-muted)' }}>
-              Loading entries…
-            </p>
+          <div className="px-4 py-3 space-y-px">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="flex items-center justify-between py-3 px-1">
+                <div className="flex flex-col gap-1.5 flex-1">
+                  <div
+                    className="h-3.5 rounded-md animate-pulse"
+                    style={{ width: `${55 + (i % 3) * 15}%`, background: 'var(--color-surface-2)' }}
+                  />
+                  <div
+                    className="h-2.5 rounded-md animate-pulse"
+                    style={{ width: '30%', background: 'var(--color-surface-2)', opacity: 0.6 }}
+                  />
+                </div>
+                <div className="flex flex-col items-end gap-1.5 ml-4">
+                  <div
+                    className="h-3.5 w-16 rounded-md animate-pulse"
+                    style={{ background: 'var(--color-surface-2)' }}
+                  />
+                  <div
+                    className="h-2.5 w-12 rounded-md animate-pulse"
+                    style={{ background: 'var(--color-surface-2)', opacity: 0.6 }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         ) : entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">

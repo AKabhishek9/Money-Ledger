@@ -30,6 +30,7 @@ function VaultContent() {
   const [items, setItems] = useState<VaultItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editTarget, setEditTarget] = useState<VaultItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<VaultItem | null>(null);
   const [search, setSearch] = useState('');
 
@@ -74,6 +75,24 @@ function VaultContent() {
     load();
   };
 
+  const handleEdit = async (type: VaultType, title: string, fields: Record<string, string>) => {
+    if (!editTarget) return;
+    const db = getDb();
+    const updated: Partial<VaultItem> = {
+      type,
+      title,
+      fields,
+      updatedAt: new Date(),
+    };
+    await db.vault.update(editTarget.id, updated);
+    await queueSync('vault', 'upsert', editTarget.id, {
+      ...editTarget,
+      ...updated,
+    } as unknown as Record<string, unknown>);
+    setEditTarget(null);
+    load();
+  };
+
   const handleDelete = async (item: VaultItem) => {
     const db = getDb();
     await db.vault.delete(item.id);
@@ -86,7 +105,10 @@ function VaultContent() {
     ? items.filter(
         (i) =>
           i.title.toLowerCase().includes(search.toLowerCase()) ||
-          i.type.toLowerCase().includes(search.toLowerCase())
+          i.type.toLowerCase().includes(search.toLowerCase()) ||
+          Object.values(i.fields).some((value) =>
+            value.toLowerCase().includes(search.toLowerCase())
+          )
       )
     : items;
 
@@ -96,7 +118,7 @@ function VaultContent() {
         title="Secure Information Vault"
         rightAction={
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => { setEditTarget(null); setShowForm(true); }}
             className="flex h-10 w-10 items-center justify-center rounded-full"
             style={{ background: 'var(--color-accent)', color: 'var(--color-on-accent)' }}
           >
@@ -180,6 +202,7 @@ function VaultContent() {
                 key={item.id}
                 item={item}
                 onDelete={() => setDeleteTarget(item)}
+                onEdit={() => { setEditTarget(item); setShowForm(true); }}
               />
             ))}
           </div>
@@ -188,8 +211,9 @@ function VaultContent() {
 
       {showForm && (
         <VaultForm
-          onSave={handleAdd}
-          onClose={() => setShowForm(false)}
+          initialItem={editTarget}
+          onSave={editTarget ? handleEdit : handleAdd}
+          onClose={() => { setShowForm(false); setEditTarget(null); }}
         />
       )}
 

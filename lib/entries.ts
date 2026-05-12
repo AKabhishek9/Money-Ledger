@@ -2,6 +2,7 @@
 
 import { getDb } from '@/lib/db';
 import { queueSync } from '@/lib/sync';
+import { v4 as uuid } from 'uuid';
 import type { Entry, PersonEntry } from '@/lib/types';
 
 interface AddEntryInput {

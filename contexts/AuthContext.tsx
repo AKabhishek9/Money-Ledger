@@ -22,6 +22,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { ensureSystemData } from '@/lib/bootstrap';
+import { getDb } from '@/lib/db';
 import { initializeUserData } from '@/lib/firestore';
 import {
   hydrateFromFirestore,
@@ -156,18 +157,32 @@ export function useAuth() {
 }
 
 async function prepareLocalData(userId: string): Promise<void> {
+  const db = getDb();
+  const localCount = await db.tabs.where('userId').equals(userId).count();
+
+  if (localCount > 0) {
+    await ensureSystemData(userId);
+    await useStore.getState().init(userId);
+
+    Promise.resolve()
+      .then(async () => {
+        await processSyncQueue();
+        await hydrateFromFirestore(userId);
+        await useStore.getState().init(userId);
+      })
+      .catch(() => undefined);
+
+    return;
+  }
+
   try {
-    // 1) Flush any pending local writes first (phone may have queued changes)
     await processSyncQueue();
-    // 2) Pull latest from Firestore into local Dexie
     await hydrateFromFirestore(userId);
-    // 3) Ensure system tabs/windows exist
     await ensureSystemData(userId);
   } catch (error) {
-    console.warn('Local data preparation partial failure:', error);
-    // Don't throw — still load what we have locally
+    console.warn('Preparation partial failure:', error);
   }
-  // Always init store from whatever is in Dexie, even if hydration failed
+
   await useStore.getState().init(userId);
 }
 

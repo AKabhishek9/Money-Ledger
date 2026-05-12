@@ -1,16 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronRight, Copy, Check } from 'lucide-react';
+import { ChevronRight, Copy, Check, Pencil } from 'lucide-react';
 import type { VaultItem } from '@/lib/types';
 import { VAULT_TEMPLATES } from '@/lib/types';
 
 interface VaultCardProps {
   item: VaultItem;
   onDelete: () => void;
+  onEdit: () => void;
 }
 
-export function VaultCard({ item, onDelete }: VaultCardProps) {
+export function VaultCard({ item, onDelete, onEdit }: VaultCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const tmpl = VAULT_TEMPLATES[item.type];
@@ -95,15 +96,25 @@ export function VaultCard({ item, onDelete }: VaultCardProps) {
             </div>
           ))}
 
-          {/* Delete */}
-          <button
-            type="button"
-            onClick={onDelete}
-            className="mt-2 w-full rounded-xl py-2.5 text-xs font-semibold transition-opacity active:opacity-80"
-            style={{ background: 'var(--color-expense-bg)', color: 'var(--color-expense)' }}
-          >
-            Delete Item
-          </button>
+          <div className="mt-2 flex gap-2">
+            <button
+              type="button"
+              onClick={onEdit}
+              className="flex-1 rounded-xl py-2.5 text-xs font-semibold transition-opacity active:opacity-80 flex items-center justify-center gap-1.5"
+              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}
+            >
+              <Pencil size={13} />
+              Edit Item
+            </button>
+            <button
+              type="button"
+              onClick={onDelete}
+              className="flex-1 rounded-xl py-2.5 text-xs font-semibold transition-opacity active:opacity-80"
+              style={{ background: 'var(--color-expense-bg)', color: 'var(--color-expense)' }}
+            >
+              Delete Item
+            </button>
+          </div>
         </div>
       )}
     </div>

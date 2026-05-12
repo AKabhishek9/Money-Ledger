@@ -7,6 +7,9 @@ import MoreDrawer from '../tabs/MoreDrawer';
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [showMore, setShowMore] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [isOnline, setIsOnline] = useState(
+    typeof window !== 'undefined' ? navigator.onLine : true
+  );
 
   // Listen for keyboard-toggle to remove bottom padding when keyboard is open
   useEffect(() => {
@@ -18,8 +21,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('keyboard-toggle', handler);
   }, []);
 
+  useEffect(() => {
+    const on = () => setIsOnline(true);
+    const off = () => setIsOnline(false);
+    window.addEventListener('online', on);
+    window.addEventListener('offline', off);
+    return () => {
+      window.removeEventListener('online', on);
+      window.removeEventListener('offline', off);
+    };
+  }, []);
+
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden" style={{ background: 'var(--color-bg)' }}>
+      {!isOnline && (
+        <div
+          className="text-center text-xs py-1.5 font-medium"
+          style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}
+        >
+          Offline - entries saved locally, will sync when connected
+        </div>
+      )}
       <main
         className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
         style={{ paddingBottom: keyboardOpen ? 0 : 'var(--app-bottom-nav-pad)' }}

@@ -5,6 +5,13 @@ import { Send, UserRound, X } from 'lucide-react';
 import { parseEntry, formatAmount } from '@/lib/parser';
 import type { Person } from '@/lib/types';
 
+function getLocalDateString(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 interface EntryInputProps {
   onAdd: (
     rawText: string,
@@ -26,7 +33,7 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
   const [loading, setLoading] = useState(false);
   const [linkedPerson, setLinkedPerson] = useState<Person | null>(null);
   const [showPersonPicker, setShowPersonPicker] = useState(false);
-  const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [entryDate, setEntryDate] = useState(getLocalDateString);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -70,12 +77,16 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
     const p = parseEntry(combined);
     if (!p.isValid) return;
 
+    if ('vibrate' in navigator) {
+      navigator.vibrate(12);
+    }
+
     setLoading(true);
     try {
       await onAdd(p.rawText, p.amount, p.note, p.type, new Date(entryDate), linkedPerson?.id, linkedPerson?.name);
       setAmountInput('');
       setNoteInput('');
-      setEntryDate(new Date().toISOString().split('T')[0]);
+      setEntryDate(getLocalDateString());
       setLinkedPerson(null);
       setShowPersonPicker(false);
       inputRef.current?.focus();

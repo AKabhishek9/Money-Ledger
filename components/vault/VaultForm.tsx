@@ -2,27 +2,27 @@
 
 import { useState } from 'react';
 import BottomSheet from '@/components/ui/BottomSheet';
-import type { VaultType } from '@/lib/types';
+import type { VaultItem, VaultType } from '@/lib/types';
 import { VAULT_TEMPLATES } from '@/lib/types';
 
 interface VaultFormProps {
   onSave: (type: VaultType, title: string, fields: Record<string, string>) => Promise<void>;
   onClose: () => void;
+  initialItem?: VaultItem | null;
 }
 
-export default function VaultForm({ onSave, onClose }: VaultFormProps) {
-  const [step, setStep] = useState<'type' | 'form'>('type');
-  const [selectedType, setSelectedType] = useState<VaultType | null>(null);
-  const [title, setTitle] = useState('');
-  const [fields, setFields] = useState<Record<string, string>>({});
+export default function VaultForm({ onSave, onClose, initialItem }: VaultFormProps) {
+  const [step, setStep] = useState<'type' | 'form'>(initialItem ? 'form' : 'type');
+  const [selectedType, setSelectedType] = useState<VaultType | null>(initialItem?.type ?? null);
+  const [title, setTitle] = useState(initialItem?.title ?? '');
+  const [fields, setFields] = useState<Record<string, string>>(initialItem?.fields ?? {});
   const [saving, setSaving] = useState(false);
 
   const handleTypeSelect = (type: VaultType) => {
     setSelectedType(type);
     setTitle(VAULT_TEMPLATES[type].label);
-    // Initialize fields
     const initial: Record<string, string> = {};
-    VAULT_TEMPLATES[type].fields.forEach((f) => (initial[f] = ''));
+    VAULT_TEMPLATES[type].fields.forEach((field) => (initial[field] = ''));
     setFields(initial);
     setStep('form');
   };
@@ -68,9 +68,8 @@ export default function VaultForm({ onSave, onClose }: VaultFormProps) {
   const template = VAULT_TEMPLATES[selectedType!];
 
   return (
-    <BottomSheet title={`Add ${template.label}`} onClose={onClose} height="full">
+    <BottomSheet title={`${initialItem ? 'Edit' : 'Add'} ${template.label}`} onClose={onClose} height="full">
       <div className="p-4 flex flex-col gap-4">
-        {/* Title */}
         <div>
           <label className="text-xs font-medium block mb-1.5" style={{ color: 'var(--color-text-muted)' }}>
             Title
@@ -89,7 +88,6 @@ export default function VaultForm({ onSave, onClose }: VaultFormProps) {
           />
         </div>
 
-        {/* Dynamic fields */}
         {template.fields.map((fieldName) => (
           <div key={fieldName}>
             <label
@@ -99,7 +97,7 @@ export default function VaultForm({ onSave, onClose }: VaultFormProps) {
               {fieldName}
             </label>
             <input
-              type={fieldName.toLowerCase().includes('number') ? 'text' : 'text'}
+              type="text"
               value={fields[fieldName] || ''}
               onChange={(e) => setFields((prev) => ({ ...prev, [fieldName]: e.target.value }))}
               className="w-full px-4 py-3 rounded-xl text-sm outline-none font-mono"
@@ -118,16 +116,16 @@ export default function VaultForm({ onSave, onClose }: VaultFormProps) {
           className="text-xs text-center"
           style={{ color: 'var(--color-text-dim)' }}
         >
-          🔒 Stored securely in your account
+          Stored securely in your account
         </p>
 
         <div className="flex gap-3">
           <button
-            onClick={() => setStep('type')}
+            onClick={() => (initialItem ? onClose() : setStep('type'))}
             className="flex-1 py-3 rounded-xl text-sm font-medium"
             style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}
           >
-            Back
+            {initialItem ? 'Cancel' : 'Back'}
           </button>
           <button
             onClick={handleSave}
@@ -138,7 +136,7 @@ export default function VaultForm({ onSave, onClose }: VaultFormProps) {
               color: 'var(--color-on-accent)',
             }}
           >
-            {saving ? 'Saving…' : 'Save to Vault'}
+            {saving ? 'Saving...' : initialItem ? 'Save Changes' : 'Save to Vault'}
           </button>
         </div>
       </div>

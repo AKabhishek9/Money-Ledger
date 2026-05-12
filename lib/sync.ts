@@ -18,6 +18,22 @@ import { db as firestoreDb } from '@/lib/firebase';
 
 type SyncCollection = 'tabs' | 'windows' | 'entries' | 'persons' | 'personEntries' | 'vault';
 
+const HYDRATION_INTERVAL_MS = 10 * 60 * 1000;
+const SYNC_COLLECTIONS: SyncCollection[] = [
+  'tabs',
+  'windows',
+  'entries',
+  'persons',
+  'personEntries',
+  'vault',
+];
+
+const REALTIME_COLLECTIONS: SyncCollection[] = ['tabs', 'windows', 'persons'];
+
+const hydrationKey = (userId: string) => 'ml_hydrated_' + userId;
+
+let isProcessing = false;
+
 /**
  * Recursively convert Date objects (and date-like ISO strings) to Firestore Timestamps.
  * This handles the case where IndexedDB serializes nested Dates back as strings.
@@ -85,74 +101,121 @@ export async function queueSync(
 
 export async function processSyncQueue(): Promise<void> {
   if (typeof window === 'undefined' || !navigator.onLine) return;
+  if (isProcessing) return;
 
-  const db = getDb();
-  const items = await db.syncQueue.orderBy('createdAt').limit(100).toArray();
-  if (items.length === 0) return;
+  isProcessing = true;
+  try {
+    const db = getDb();
+    const items = await db.syncQueue.orderBy('createdAt').limit(100).toArray();
+    if (items.length === 0) return;
 
-  for (const item of items) {
-    if (item.id === undefined) continue;
+    for (const item of items) {
+      if (item.id === undefined) continue;
 
-    try {
-      if (item.operation === 'upsert' && item.data) {
-        await setDoc(doc(firestoreDb, item.collection, item.documentId), toFirestore(item.data), {
-          merge: true,
-        });
-      } else if (item.operation === 'delete') {
-        await deleteDoc(doc(firestoreDb, item.collection, item.documentId));
-      }
+      try {
+        if (item.operation === 'upsert' && item.data) {
+          await setDoc(doc(firestoreDb, item.collection, item.documentId), toFirestore(item.data), {
+            merge: true,
+          });
+        } else if (item.operation === 'delete') {
+          await deleteDoc(doc(firestoreDb, item.collection, item.documentId));
+        }
 
-      await db.syncQueue.delete(item.id);
-    } catch (err) {
-      console.warn(`Sync failed for ${item.collection}/${item.documentId}:`, err);
-      const retries = item.retries + 1;
-
-      if (retries >= 5) {
         await db.syncQueue.delete(item.id);
-      } else {
-        await db.syncQueue.update(item.id, { retries });
+      } catch (err) {
+        console.warn(`Sync failed for ${item.collection}/${item.documentId}:`, err);
+        const retries = item.retries + 1;
+
+        if (retries >= 5) {
+          await db.syncQueue.delete(item.id);
+        } else {
+          await db.syncQueue.update(item.id, { retries });
+        }
       }
     }
+  } finally {
+    isProcessing = false;
   }
 }
 
 /**
- * Pull all data from Firestore and upsert into local Dexie.
- * Called on every app load / auth state change.
+ * Pull Firestore data only when local data is missing or stale.
+ * Dexie remains the primary source of truth for normal app opens.
  */
 export async function hydrateFromFirestore(userId: string): Promise<void> {
   if (typeof window === 'undefined') return;
 
-  const db = getDb();
-  const collections: SyncCollection[] = [
-    'tabs',
-    'windows',
-    'entries',
-    'persons',
-    'personEntries',
-    'vault',
-  ];
+  const lastHydration = localStorage.getItem(hydrationKey(userId));
+  const now = Date.now();
 
-  for (const collectionName of collections) {
-    try {
-      const q = query(collection(firestoreDb, collectionName), where('userId', '==', userId));
-      const snapshot = await getDocs(q);
-      if (snapshot.empty) continue;
-
-      const records = snapshot.docs.map((snapshotDoc) =>
-        fromFirestore(snapshotDoc.data(), snapshotDoc.id)
-      );
-      const table = db.table(collectionName) as Table<Record<string, unknown>, string>;
-      await table.bulkPut(records);
-    } catch (err) {
-      console.error(`Failed to hydrate ${collectionName}:`, err);
-    }
+  if (lastHydration && now - Number.parseInt(lastHydration, 10) < HYDRATION_INTERVAL_MS) {
+    return;
   }
+
+  const db = getDb();
+  const localCount = await db.tabs.where('userId').equals(userId).count();
+
+  if (localCount === 0) {
+    await fullHydrateFromFirestore(userId);
+  } else if (navigator.onLine) {
+    deltaHydrateFromFirestore(userId).catch(() => undefined);
+  }
+
+  localStorage.setItem(hydrationKey(userId), String(now));
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-// REAL-TIME SYNC — Firestore onSnapshot listeners so other devices see changes
-// ──────────────────────────────────────────────────────────────────────────────
+async function fullHydrateFromFirestore(userId: string): Promise<void> {
+  const db = getDb();
+
+  await Promise.allSettled(
+    SYNC_COLLECTIONS.map(async (collectionName) => {
+      try {
+        const q = query(collection(firestoreDb, collectionName), where('userId', '==', userId));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) return;
+
+        const records = snapshot.docs.map((snapshotDoc) =>
+          fromFirestore(snapshotDoc.data(), snapshotDoc.id)
+        );
+        const table = db.table(collectionName) as Table<Record<string, unknown>, string>;
+        await table.bulkPut(records);
+      } catch (err) {
+        console.warn(`Hydration failed for ${collectionName}:`, err);
+      }
+    })
+  );
+}
+
+async function deltaHydrateFromFirestore(userId: string): Promise<void> {
+  const db = getDb();
+  const since = Timestamp.fromDate(new Date(Date.now() - HYDRATION_INTERVAL_MS));
+
+  await Promise.allSettled(
+    SYNC_COLLECTIONS.map(async (collectionName) => {
+      try {
+        const q = query(
+          collection(firestoreDb, collectionName),
+          where('userId', '==', userId),
+          where('updatedAt', '>=', since)
+        );
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) return;
+
+        const records = snapshot.docs.map((snapshotDoc) =>
+          fromFirestore(snapshotDoc.data(), snapshotDoc.id)
+        );
+        const table = db.table(collectionName) as Table<Record<string, unknown>, string>;
+        await table.bulkPut(records);
+      } catch {
+        // Local data is still valid if a delta sync fails.
+      }
+    })
+  );
+}
+
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// REAL-TIME SYNC â€” Firestore onSnapshot listeners so other devices see changes
+// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type Unsubscribe = () => void;
 
@@ -170,16 +233,9 @@ export function startRealtimeSync(userId: string): () => void {
   if (typeof window === 'undefined') return () => undefined;
 
   const db = getDb();
-  const collections: SyncCollection[] = [
-    'tabs',
-    'windows',
-    'entries',
-    'persons',
-    'personEntries',
-    'vault',
-  ];
+  const collections = REALTIME_COLLECTIONS;
 
-  // Debounce store refresh — multiple snapshots fire close together
+  // Debounce store refresh â€” multiple snapshots fire close together
   let refreshTimer: ReturnType<typeof setTimeout> | null = null;
   const scheduleStoreRefresh = () => {
     if (refreshTimer) clearTimeout(refreshTimer);
@@ -192,7 +248,7 @@ export function startRealtimeSync(userId: string): () => void {
           await state.init(state.userId);
         }
       } catch {
-        // Store not ready yet — ignore
+        // Store not ready yet â€” ignore
       }
     }, 500);
   };
@@ -203,33 +259,35 @@ export function startRealtimeSync(userId: string): () => void {
 
       const unsub = onSnapshot(
         q,
-        { includeMetadataChanges: false },
+        { includeMetadataChanges: true },
         async (snapshot) => {
-          // Skip snapshots that originate from LOCAL writes (hasPendingWrites)
-          // to avoid re-processing data we just wrote.
-          if (snapshot.metadata.hasPendingWrites) return;
+          const hasServerChanges = snapshot.docChanges().some(
+            (change) => !change.doc.metadata.hasPendingWrites
+          );
+          if (!hasServerChanges) return;
+
+          const queuedIds = new Set(
+            (await db.syncQueue.toArray()).map((item) => item.documentId)
+          );
+
+          const genuinelyRemoteChanges = snapshot.docChanges().filter(
+            (change) => !queuedIds.has(change.doc.id) && !change.doc.metadata.hasPendingWrites
+          );
+
+          if (genuinelyRemoteChanges.length === 0) return;
 
           const table = db.table(collectionName) as Table<Record<string, unknown>, string>;
 
-          for (const change of snapshot.docChanges()) {
+          for (const change of genuinelyRemoteChanges) {
             if (change.type === 'removed') {
-              try {
-                await table.delete(change.doc.id);
-              } catch {
-                // Record might not exist locally — fine
-              }
+              await table.delete(change.doc.id).catch(() => undefined);
             } else {
-              // 'added' or 'modified'
-              const record = fromFirestore(change.doc.data(), change.doc.id);
-              try {
-                await table.put(record);
-              } catch {
-                // Schema mismatch or constraint — ignore
-              }
+              await table
+                .put(fromFirestore(change.doc.data(), change.doc.id))
+                .catch(() => undefined);
             }
           }
 
-          // Refresh store so UI picks up the changes
           scheduleStoreRefresh();
         },
         (error) => {

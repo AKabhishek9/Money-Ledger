@@ -105,17 +105,18 @@ function PersonalContent() {
       setWindows(wins);
       setLoading(false);
 
-      const stats: Record<string, { total: number; count: number }> = {};
-      await Promise.all(
+      Promise.all(
         wins.map(async (w) => {
           const entries = await localGetEntries(w.id);
-          stats[w.id] = {
-            total: entries.reduce((s, e) => s + e.amount, 0),
-            count: entries.length,
-          };
+          setWindowStats((prev) => ({
+            ...prev,
+            [w.id]: {
+              total: entries.reduce((s, e) => s + e.amount, 0),
+              count: entries.length,
+            },
+          }));
         })
-      );
-      setWindowStats(stats);
+      ).catch(() => undefined);
     } finally {
       setLoading(false);
     }
