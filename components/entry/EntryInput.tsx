@@ -104,20 +104,18 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
 
   const toggleIncome = () => {
     if (amountInput.startsWith('-')) {
-      setAmountInput(amountInput.substring(1));
-    } else if (amountInput.startsWith('+')) {
-      // already positive
+      setAmountInput('+' + amountInput.substring(1));
+    } else if (!amountInput.startsWith('+')) {
+      setAmountInput('+' + amountInput);
     }
     inputRef.current?.focus();
   };
 
   const toggleExpense = () => {
-    if (!amountInput.startsWith('-')) {
-      if (amountInput.startsWith('+')) {
-        setAmountInput('-' + amountInput.substring(1));
-      } else {
-        setAmountInput('-' + amountInput);
-      }
+    if (amountInput.startsWith('+')) {
+      setAmountInput('-' + amountInput.substring(1));
+    } else if (!amountInput.startsWith('-')) {
+      setAmountInput('-' + amountInput);
     }
     inputRef.current?.focus();
   };
@@ -129,11 +127,11 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
         onClick={toggleIncome}
         className="px-2.5 py-1 font-medium transition-colors"
         style={{
-          background: amountInput && !amountInput.startsWith('-') && amountInput !== '-' ? 'var(--color-income)' : 'var(--color-surface-2)',
-          color: amountInput && !amountInput.startsWith('-') && amountInput !== '-' ? '#fff' : 'var(--color-text-dim)'
+          background: !amountInput.startsWith('-') && amountInput !== '-' ? 'var(--color-income)' : 'var(--color-surface-2)',
+          color: !amountInput.startsWith('-') && amountInput !== '-' ? '#fff' : 'var(--color-text-dim)'
         }}
       >
-        + IN
+        + Credit
       </button>
       <div className="w-px self-stretch" style={{ background: 'var(--color-border)' }} />
       <button
@@ -145,7 +143,7 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
           color: amountInput.startsWith('-') ? '#fff' : 'var(--color-text-dim)'
         }}
       >
-        - OUT
+        - Debit
       </button>
     </div>
   );
@@ -308,7 +306,7 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
             value={amountInput}
             onChange={(e) => setAmountInput(e.target.value)}
             onKeyDown={handleKey}
-            placeholder={amountInput.startsWith('-') ? "Amount (e.g. 500)" : "Amount (e.g. +500 or -500)"}
+            placeholder="Enter Amount"
             disabled={disabled || loading}
             className="amount-mono min-w-0 flex-[1.1] px-3 py-3 text-[0.9375rem] outline-none"
             style={{
