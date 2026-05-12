@@ -102,6 +102,54 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
   const isIncome = parsed?.isValid && parsed.amount > 0;
   const isExpense = parsed?.isValid && parsed.amount < 0;
 
+  const toggleIncome = () => {
+    if (amountInput.startsWith('-')) {
+      setAmountInput(amountInput.substring(1));
+    } else if (amountInput.startsWith('+')) {
+      // already positive
+    }
+    inputRef.current?.focus();
+  };
+
+  const toggleExpense = () => {
+    if (!amountInput.startsWith('-')) {
+      if (amountInput.startsWith('+')) {
+        setAmountInput('-' + amountInput.substring(1));
+      } else {
+        setAmountInput('-' + amountInput);
+      }
+    }
+    inputRef.current?.focus();
+  };
+
+  const inOutToggle = (
+    <div className="flex items-center rounded-xl overflow-hidden text-xs shrink-0" style={{ border: '1px solid var(--color-border)' }}>
+      <button
+        type="button"
+        onClick={toggleIncome}
+        className="px-2.5 py-1 font-medium transition-colors"
+        style={{
+          background: amountInput && !amountInput.startsWith('-') && amountInput !== '-' ? 'var(--color-income)' : 'var(--color-surface-2)',
+          color: amountInput && !amountInput.startsWith('-') && amountInput !== '-' ? '#fff' : 'var(--color-text-dim)'
+        }}
+      >
+        + IN
+      </button>
+      <div className="w-px self-stretch" style={{ background: 'var(--color-border)' }} />
+      <button
+        type="button"
+        onClick={toggleExpense}
+        className="px-2.5 py-1 font-medium transition-colors"
+        style={{
+          background: amountInput.startsWith('-') ? 'var(--color-expense)' : 'var(--color-surface-2)',
+          color: amountInput.startsWith('-') ? '#fff' : 'var(--color-text-dim)'
+        }}
+      >
+        - OUT
+      </button>
+    </div>
+  );
+
   return (
     <div
       ref={containerRef}
@@ -147,32 +195,26 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
         </div>
       )}
 
-      {parsed && !parsed.isValid && combined && (
-        <div
-          className="px-3 py-1.5 rounded-xl mb-2 text-xs"
-          style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}
-        >
-          Type: +5000 salary · -1200 ration · 5000-1200
-        </div>
-      )}
+      <div className="flex items-center gap-2 mb-2 flex-wrap">
+        {/* Date Picker */}
+        <input
+          type="date"
+          value={entryDate}
+          onChange={(e) => setEntryDate(e.target.value)}
+          disabled={disabled || loading}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs outline-none"
+          style={{
+            background: 'var(--color-surface-2)',
+            color: 'var(--color-text-dim)',
+            border: '1px solid var(--color-border)',
+            cursor: 'pointer'
+          }}
+        />
+        
+        {inOutToggle}
 
-      {persons && persons.length > 0 ? (
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          {/* Date Picker */}
-          <input
-            type="date"
-            value={entryDate}
-            onChange={(e) => setEntryDate(e.target.value)}
-            disabled={disabled || loading}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs outline-none"
-            style={{
-              background: 'var(--color-surface-2)',
-              color: 'var(--color-text-dim)',
-              border: '1px solid var(--color-border)',
-              cursor: 'pointer'
-            }}
-          />
-          {linkedPerson ? (
+        {persons && persons.length > 0 && (
+          linkedPerson ? (
             <div
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-medium max-w-full"
               style={{ background: 'var(--color-accent-bg)', color: 'var(--color-accent)' }}
@@ -198,25 +240,9 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
               <UserRound size={12} />
               Link person
             </button>
-          )}
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 mb-2">
-          <input
-            type="date"
-            value={entryDate}
-            onChange={(e) => setEntryDate(e.target.value)}
-            disabled={disabled || loading}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs outline-none"
-            style={{
-              background: 'var(--color-surface-2)',
-              color: 'var(--color-text-dim)',
-              border: '1px solid var(--color-border)',
-              cursor: 'pointer'
-            }}
-          />
-        </div>
-      )}
+          )
+        )}
+      </div>
 
       {showPersonPicker && persons && persons.length > 0 && (
         <div
@@ -282,7 +308,7 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
             value={amountInput}
             onChange={(e) => setAmountInput(e.target.value)}
             onKeyDown={handleKey}
-            placeholder="Amount"
+            placeholder={amountInput.startsWith('-') ? "Amount (e.g. 500)" : "Amount (e.g. +500 or -500)"}
             disabled={disabled || loading}
             className="amount-mono min-w-0 flex-[1.1] px-3 py-3 text-[0.9375rem] outline-none"
             style={{

@@ -12,6 +12,7 @@ export interface Tab {
   archived: boolean;
   isSystem: boolean;
   createdAt: Date;
+  updatedAt?: Date;
 }
 
 // ===== WINDOWS / PAGES =====
@@ -27,6 +28,8 @@ export interface MoneyWindow {
   autoMonthly: boolean;
   monthKey?: string;
   createdAt: Date;
+  updatedAt?: Date;
+  deletedAt?: Date;
 }
 
 // ===== ENTRIES =====

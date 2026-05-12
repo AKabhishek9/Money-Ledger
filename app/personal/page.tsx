@@ -17,6 +17,7 @@ import { getDb } from '@/lib/db';
 import { localGetEntries } from '@/lib/entries';
 import { useStore } from '@/store/useStore';
 import type { Tab, MoneyWindow } from '@/lib/types';
+import { formatAmount } from '@/lib/parser';
 import { Archive } from 'lucide-react';
 
 export default function PersonalPage() {
@@ -67,6 +68,10 @@ function PersonalContent() {
 
   const selectedWindow = windows.find((w) => w.id === windowId) || null;
   const prevWindowIdRef = useRef<string | null>(null);
+
+  const globalTotalBalance = useMemo(() => {
+    return Object.values(windowStats).reduce((sum, w) => sum + w.total, 0);
+  }, [windowStats]);
 
   useEffect(() => {
     if (!cachedPersonalTab) return;
@@ -292,7 +297,29 @@ function PersonalContent() {
         }
       />
 
-      {loading ? (
+      {/* NET BALANCE card */}
+      <div className="px-4 pt-3 pb-2 shrink-0">
+        <div
+          className="rounded-2xl px-5 py-4 text-center"
+          style={{
+            background: 'var(--color-surface)',
+            border: '1px solid var(--color-border-2)',
+            boxShadow: 'var(--shadow-card)',
+          }}
+        >
+          <p className="text-balance-label mb-2">Total Personal Balance</p>
+          <p
+            className="amount-mono text-[2rem] font-bold leading-none tracking-tight"
+            style={{
+              color: globalTotalBalance === 0 ? 'var(--color-text-muted)' : globalTotalBalance > 0 ? 'var(--color-income)' : 'var(--color-expense)',
+            }}
+          >
+            {globalTotalBalance === 0 ? '₹0' : formatAmount(globalTotalBalance)}
+          </p>
+        </div>
+      </div>
+
+      {loading ? (    {loading ? (
         <Loader label="Loading pages..." />
       ) : windows.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center py-20 px-6 text-center">

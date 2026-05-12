@@ -77,7 +77,7 @@ function SettingsContent() {
             {
               icon: <BookOpen size={18} />,
               label: 'Money Ledger',
-              value: 'v2.0.6',
+              value: 'v2.1.2',
             },
             {
               icon: <Shield size={18} />,

@@ -37,6 +37,11 @@ interface StoreState {
   init: (userId: string) => Promise<void>;
   reset: () => void;
 
+  // Surgical remote-sync patches (called by realtime listener — no full reload)
+  patchTab: (tab: Tab) => void;
+  patchWindow: (window: MoneyWindow) => void;
+  patchPerson: (person: Person) => void;
+
   loadTabs: (userId: string) => Promise<Tab[]>;
   addTab: (userId: string, data: { name: string; icon: string }) => Promise<string>;
   updateTab: (id: string, data: Partial<Tab>) => Promise<void>;
@@ -68,6 +73,7 @@ export const useStore = create<StoreState>((set, get) => ({
   isLoaded: false,
   userId: null,
 
+  // ── Full init from Dexie (called once at login) ───────────────────────────
   init: async (userId) => {
     const db = getDb();
     const [tabs, persons, windows] = await Promise.all([
@@ -100,6 +106,55 @@ export const useStore = create<StoreState>((set, get) => ({
   reset: () =>
     set({ tabs: [], windows: [], windowsByTabId: {}, persons: [], isLoaded: false, userId: null }),
 
+  // ── Surgical patches — used by realtime sync to avoid full reload ─────────
+
+  patchTab: (incoming: Tab) => {
+    set((state) => {
+      const exists = state.tabs.find((t) => t.id === incoming.id);
+      const tabs = exists
+        ? state.tabs.map((t) => (t.id === incoming.id ? { ...t, ...incoming } : t))
+        : [...state.tabs, incoming];
+      return { tabs };
+    });
+  },
+
+  patchWindow: (incoming: MoneyWindow) => {
+    set((state) => {
+      const mergeInto = (list: MoneyWindow[]) => {
+        const exists = list.find((w) => w.id === incoming.id);
+        const updated = exists
+          ? list.map((w) => (w.id === incoming.id ? { ...w, ...incoming } : w))
+          : [...list, incoming];
+        return sortWindows(updated.filter(isVisibleWindow));
+      };
+
+      const windowsByTabId = Object.fromEntries(
+        Object.entries(state.windowsByTabId).map(([tabId, tabWindows]) => [
+          tabId,
+          incoming.tabId === tabId ? mergeInto(tabWindows) : tabWindows,
+        ])
+      );
+
+      // If the window belongs to a tab not yet in windowsByTabId, add it
+      if (!windowsByTabId[incoming.tabId]) {
+        windowsByTabId[incoming.tabId] = isVisibleWindow(incoming) ? [incoming] : [];
+      }
+
+      return { windowsByTabId };
+    });
+  },
+
+  patchPerson: (incoming: Person) => {
+    set((state) => {
+      const exists = state.persons.find((p) => p.id === incoming.id);
+      const persons = exists
+        ? state.persons.map((p) => (p.id === incoming.id ? { ...p, ...incoming } : p))
+        : [...state.persons, incoming];
+      return { persons };
+    });
+  },
+
+  // ── Tab operations ────────────────────────────────────────────────────────
   loadTabs: async (userId) => {
     const db = getDb();
     const tabs = await db.tabs.where('userId').equals(userId).sortBy('order');
@@ -123,6 +178,7 @@ export const useStore = create<StoreState>((set, get) => ({
       archived: false,
       isSystem: false,
       createdAt: now,
+      updatedAt: now,
     };
 
     await db.tabs.add(tab);
@@ -133,10 +189,11 @@ export const useStore = create<StoreState>((set, get) => ({
 
   updateTab: async (id, data) => {
     const db = getDb();
-    await db.tabs.update(id, data);
-    await queueSync('tabs', 'upsert', id, data as Record<string, unknown>);
+    const updated = { ...data, updatedAt: new Date() };
+    await db.tabs.update(id, updated);
+    await queueSync('tabs', 'upsert', id, updated as Record<string, unknown>);
     set((state) => ({
-      tabs: state.tabs.map((tab) => (tab.id === id ? { ...tab, ...data } : tab)),
+      tabs: state.tabs.map((tab) => (tab.id === id ? { ...tab, ...updated } : tab)),
     }));
   },
 
@@ -166,6 +223,7 @@ export const useStore = create<StoreState>((set, get) => ({
     });
   },
 
+  // ── Window operations ─────────────────────────────────────────────────────
   loadWindows: async (userId, tabId) => {
     const db = getDb();
     const windows = await db.windows
@@ -186,6 +244,7 @@ export const useStore = create<StoreState>((set, get) => ({
   addWindow: async (userId, tabId, title, extra = {}) => {
     const db = getDb();
     const id = uuid();
+    const now = new Date();
     const order = await db.windows.where('tabId').equals(tabId).count();
     const window: MoneyWindow = {
       id,
@@ -197,15 +256,19 @@ export const useStore = create<StoreState>((set, get) => ({
       archived: false,
       inRecycleBin: false,
       autoMonthly: false,
-      createdAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
       ...extra,
     };
 
     await db.windows.add(window);
     await queueSync('windows', 'upsert', id, window as unknown as Record<string, unknown>);
     set((state) => {
-      const tabWindows = sortWindows([...(state.windowsByTabId[tabId] || []), window].filter(isVisibleWindow));
-      const showingThisTab = state.windows.length === 0 || state.windows.every((item) => item.tabId === tabId);
+      const tabWindows = sortWindows(
+        [...(state.windowsByTabId[tabId] || []), window].filter(isVisibleWindow)
+      );
+      const showingThisTab =
+        state.windows.length === 0 || state.windows.every((item) => item.tabId === tabId);
       return {
         windows: showingThisTab ? tabWindows : state.windows,
         windowsByTabId: { ...state.windowsByTabId, [tabId]: tabWindows },
@@ -216,17 +279,18 @@ export const useStore = create<StoreState>((set, get) => ({
 
   updateWindow: async (id, data) => {
     const db = getDb();
-    await db.windows.update(id, data);
-    await queueSync('windows', 'upsert', id, data as Record<string, unknown>);
+    const updated = { ...data, updatedAt: new Date() };
+    await db.windows.update(id, updated);
+    await queueSync('windows', 'upsert', id, updated as Record<string, unknown>);
     set((state) => {
-      const updateOne = (window: MoneyWindow) => (window.id === id ? { ...window, ...data } : window);
+      const updateOne = (window: MoneyWindow) =>
+        window.id === id ? { ...window, ...updated } : window;
       const windowsByTabId = Object.fromEntries(
         Object.entries(state.windowsByTabId).map(([tabId, tabWindows]) => [
           tabId,
           sortWindows(tabWindows.map(updateOne).filter(isVisibleWindow)),
         ])
       );
-
       return {
         windows: sortWindows(state.windows.map(updateOne).filter(isVisibleWindow)),
         windowsByTabId,
@@ -235,11 +299,12 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   softDeleteWindow: async (id) => {
-    await get().updateWindow(id, { inRecycleBin: true });
+    // Record when it was moved to the bin — used for 30-day TTL
+    await get().updateWindow(id, { inRecycleBin: true, deletedAt: new Date() } as Partial<MoneyWindow>);
   },
 
   restoreWindow: async (id) => {
-    await get().updateWindow(id, { inRecycleBin: false });
+    await get().updateWindow(id, { inRecycleBin: false, deletedAt: undefined } as Partial<MoneyWindow>);
   },
 
   hardDeleteWindow: async (id) => {
@@ -264,6 +329,7 @@ export const useStore = create<StoreState>((set, get) => ({
     }));
   },
 
+  // ── Person operations ─────────────────────────────────────────────────────
   loadPersons: async (userId) => {
     const db = getDb();
     const persons = await db.persons.where('userId').equals(userId).sortBy('order');
@@ -298,7 +364,9 @@ export const useStore = create<StoreState>((set, get) => ({
     await db.persons.update(id, updated);
     await queueSync('persons', 'upsert', id, updated as Record<string, unknown>);
     set((state) => ({
-      persons: state.persons.map((person) => (person.id === id ? { ...person, ...updated } : person)),
+      persons: state.persons.map((person) =>
+        person.id === id ? { ...person, ...updated } : person
+      ),
     }));
   },
 
@@ -313,6 +381,8 @@ export const useStore = create<StoreState>((set, get) => ({
     await db.personEntries.where('personId').equals(id).delete();
     await db.persons.delete(id);
     await queueSync('persons', 'delete', id);
-    set((state) => ({ persons: state.persons.filter((person) => person.id !== id) }));
+    set((state) => ({
+      persons: state.persons.filter((person) => person.id !== id),
+    }));
   },
 }));

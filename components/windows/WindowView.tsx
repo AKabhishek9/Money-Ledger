@@ -111,7 +111,7 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
       });
     }
 
-    setEntries((prev) => [entry, ...prev]);
+    setEntries((prev) => [...prev, entry]);
   };
 
   const handleDelete = async (entry: Entry) => {

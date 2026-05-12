@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Download } from 'lucide-react';
+import { FileSpreadsheet, FileText } from 'lucide-react';
 import type { Person, PersonEntry } from '@/lib/types';
 import {
   computeRunningBalance,
@@ -82,7 +82,7 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
       note,
       entryDate,
     });
-    setEntries((prev) => [entry, ...prev]);
+    setEntries((prev) => [...prev, entry]);
   };
 
   const handleDelete = async (e: PersonEntry) => {
@@ -147,27 +147,29 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
           <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              onClick={() => exportPersonToCSV(person.name, entries)}
-              className="flex h-10 w-10 items-center justify-center rounded-full transition-opacity duration-150 active:opacity-80"
-              style={{
-                background: 'var(--color-accent)',
-                color: 'var(--color-on-accent)',
-              }}
-              aria-label="Export CSV"
-            >
-              <Download size={16} strokeWidth={2} />
-            </button>
-            <button
-              type="button"
               onClick={() => exportPersonToPDF(person.name, entries)}
-              className="flex h-10 w-10 items-center justify-center rounded-full transition-opacity duration-150 active:opacity-80"
+              className="flex h-8 px-3 items-center justify-center gap-1.5 rounded-full text-xs font-semibold tracking-wide transition-opacity duration-150 active:opacity-80"
               style={{
                 background: 'var(--color-accent)',
                 color: 'var(--color-on-accent)',
               }}
               aria-label="Export PDF"
             >
-              <Download size={16} strokeWidth={2} />
+              <FileText size={14} strokeWidth={2.5} />
+              <span>PDF</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => exportPersonToCSV(person.name, entries)}
+              className="flex h-8 px-3 items-center justify-center gap-1.5 rounded-full text-xs font-semibold tracking-wide transition-opacity duration-150 active:opacity-80"
+              style={{
+                background: 'var(--color-accent)',
+                color: 'var(--color-on-accent)',
+              }}
+              aria-label="Export CSV"
+            >
+              <FileSpreadsheet size={14} strokeWidth={2.5} />
+              <span>CSV</span>
             </button>
           </div>
         </div>

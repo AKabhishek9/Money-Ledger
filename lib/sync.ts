@@ -18,7 +18,6 @@ import { db as firestoreDb } from '@/lib/firebase';
 
 type SyncCollection = 'tabs' | 'windows' | 'entries' | 'persons' | 'personEntries' | 'vault';
 
-const HYDRATION_INTERVAL_MS = 10 * 60 * 1000;
 const SYNC_COLLECTIONS: SyncCollection[] = [
   'tabs',
   'windows',
@@ -28,14 +27,15 @@ const SYNC_COLLECTIONS: SyncCollection[] = [
   'vault',
 ];
 
-const REALTIME_COLLECTIONS: SyncCollection[] = SYNC_COLLECTIONS;
-
-const hydrationKey = (userId: string) => 'ml_hydrated_' + userId;
+/** How long (ms) a recycle-bin window is kept before hard deletion. */
+const BIN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 let isProcessing = false;
+
+// ── Loop-guard: remember IDs we just wrote locally so incoming realtime
+//    snapshots don't echo them back as "remote changes".
 const recentLocalSyncIds = new Map<string, number>();
 const RECENT_LOCAL_SYNC_TTL_MS = 30_000;
-
 
 function syncDocumentKey(collectionName: SyncCollection, documentId: string): string {
   return `${collectionName}:${documentId}`;
@@ -52,7 +52,6 @@ function isRecentLocalSync(collectionName: SyncCollection, documentId: string): 
       recentLocalSyncIds.delete(key);
     }
   }
-
   return recentLocalSyncIds.has(syncDocumentKey(collectionName, documentId));
 }
 
@@ -63,18 +62,15 @@ function notifyRemoteSync(collectionName: SyncCollection): void {
   );
 }
 
-/**
- * Recursively convert Date objects (and date-like ISO strings) to Firestore Timestamps.
- * This handles the case where IndexedDB serializes nested Dates back as strings.
- */
+// ── Date / Timestamp helpers ──────────────────────────────────────────────────
+
+/** Recursively convert Dates (and ISO strings) → Firestore Timestamps. */
 function toFirestore(data: Record<string, unknown>): Record<string, unknown> {
   const result: Record<string, unknown> = {};
-
   for (const [key, value] of Object.entries(data)) {
     if (value instanceof Date) {
       result[key] = Timestamp.fromDate(value);
     } else if (typeof value === 'string' && isIsoDateString(value)) {
-      // IndexedDB may have serialised Date to ISO string inside nested 'data'
       result[key] = Timestamp.fromDate(new Date(value));
     } else if (value === undefined) {
       result[key] = deleteField();
@@ -82,28 +78,38 @@ function toFirestore(data: Record<string, unknown>): Record<string, unknown> {
       result[key] = value;
     }
   }
-
   return result;
 }
 
-/** Check if a string looks like an ISO-8601 date */
 function isIsoDateString(s: string): boolean {
-  // Match: 2026-05-11T06:30:00.000Z  or  2026-05-11T12:06:43+05:30
   if (s.length < 20 || s.length > 35) return false;
   return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(s);
 }
 
 function fromFirestore(data: Record<string, unknown>, id: string): Record<string, unknown> {
   const converted: Record<string, unknown> = { ...data, id };
-
   for (const [key, value] of Object.entries(converted)) {
     if (value instanceof Timestamp) {
       converted[key] = value.toDate();
     }
   }
-
   return converted;
 }
+
+// ── lastSyncTime helpers ──────────────────────────────────────────────────────
+
+async function getLastSyncTime(): Promise<Date | null> {
+  const db = getDb();
+  const record = await db.lastSync.get('global');
+  return record ? new Date(record.value) : null;
+}
+
+async function saveLastSyncTime(time: Date = new Date()): Promise<void> {
+  const db = getDb();
+  await db.lastSync.put({ key: 'global', value: time.toISOString() });
+}
+
+// ── Sync Queue ────────────────────────────────────────────────────────────────
 
 export async function queueSync(
   collectionName: SyncCollection,
@@ -133,75 +139,67 @@ export async function processSyncQueue(): Promise<void> {
   if (isProcessing) return;
 
   isProcessing = true;
+  const syncedAt = new Date();
+
   try {
     const db = getDb();
     const items = await db.syncQueue.orderBy('createdAt').limit(100).toArray();
     if (items.length === 0) return;
+
+    let anySuccess = false;
 
     for (const item of items) {
       if (item.id === undefined) continue;
 
       try {
         if (item.operation === 'upsert' && item.data) {
-          await setDoc(doc(firestoreDb, item.collection, item.documentId), toFirestore(item.data), {
-            merge: true,
-          });
+          await setDoc(
+            doc(firestoreDb, item.collection, item.documentId),
+            toFirestore(item.data),
+            { merge: true }
+          );
         } else if (item.operation === 'delete') {
           await deleteDoc(doc(firestoreDb, item.collection, item.documentId));
         }
 
         rememberLocalSync(item.collection, item.documentId);
         await db.syncQueue.delete(item.id);
+        anySuccess = true;
       } catch (err) {
         console.warn(`Sync failed for ${item.collection}/${item.documentId}:`, err);
         const retries = item.retries + 1;
 
         if (retries >= 5) {
           rememberLocalSync(item.collection, item.documentId);
-        await db.syncQueue.delete(item.id);
+          await db.syncQueue.delete(item.id);
         } else {
           await db.syncQueue.update(item.id, { retries });
         }
       }
+    }
+
+    // Persist lastSyncTime only after we successfully pushed something
+    if (anySuccess) {
+      await saveLastSyncTime(syncedAt);
     }
   } finally {
     isProcessing = false;
   }
 }
 
-/**
- * Pull Firestore data only when local data is missing or stale.
- * Dexie remains the primary source of truth for normal app opens.
- */
-export async function hydrateFromFirestore(userId: string): Promise<void> {
-  if (typeof window === 'undefined') return;
-
-  const lastHydration = localStorage.getItem(hydrationKey(userId));
-  const now = Date.now();
-
-  if (lastHydration && now - Number.parseInt(lastHydration, 10) < HYDRATION_INTERVAL_MS) {
-    return;
-  }
-
-  const db = getDb();
-  const localCount = await db.tabs.where('userId').equals(userId).count();
-
-  if (localCount === 0) {
-    await fullHydrateFromFirestore(userId);
-  } else if (navigator.onLine) {
-    deltaHydrateFromFirestore(userId).catch(() => undefined);
-  }
-
-  localStorage.setItem(hydrationKey(userId), String(now));
-}
+// ── Full Hydration (new device — runs ONCE) ───────────────────────────────────
 
 async function fullHydrateFromFirestore(userId: string): Promise<void> {
   const db = getDb();
+  const syncedAt = new Date();
 
   await Promise.allSettled(
     SYNC_COLLECTIONS.map(async (collectionName) => {
       try {
-        const q = query(collection(firestoreDb, collectionName), where('userId', '==', userId));
+        const q = query(
+          collection(firestoreDb, collectionName),
+          where('userId', '==', userId)
+        );
         const snapshot = await getDocs(q);
         if (snapshot.empty) return;
 
@@ -211,15 +209,38 @@ async function fullHydrateFromFirestore(userId: string): Promise<void> {
         const table = db.table(collectionName) as Table<Record<string, unknown>, string>;
         await table.bulkPut(records);
       } catch (err) {
-        console.warn(`Hydration failed for ${collectionName}:`, err);
+        console.warn(`Full hydration failed for ${collectionName}:`, err);
       }
     })
   );
+
+  // Mark this device as fully hydrated
+  await saveLastSyncTime(syncedAt);
 }
 
-async function deltaHydrateFromFirestore(userId: string): Promise<void> {
+// ── Incremental Delta Sync (existing device) ──────────────────────────────────
+
+/**
+ * Exported: called on app startup.
+ *
+ * • New device  (lastSync == null) → full hydration, saves lastSyncTime
+ * • Existing    (lastSync exists)  → only fetch docs where updatedAt > lastSyncTime
+ */
+export async function incrementalSync(userId: string): Promise<void> {
+  if (typeof window === 'undefined' || !navigator.onLine) return;
+
+  const lastSyncTime = await getLastSyncTime();
+
+  if (!lastSyncTime) {
+    // ── NEW DEVICE: full hydration once ──
+    await fullHydrateFromFirestore(userId);
+    return;
+  }
+
+  // ── EXISTING DEVICE: delta sync ──
   const db = getDb();
-  const since = Timestamp.fromDate(new Date(Date.now() - HYDRATION_INTERVAL_MS));
+  const since = Timestamp.fromDate(lastSyncTime);
+  const syncedAt = new Date();
 
   await Promise.allSettled(
     SYNC_COLLECTIONS.map(async (collectionName) => {
@@ -227,71 +248,101 @@ async function deltaHydrateFromFirestore(userId: string): Promise<void> {
         const q = query(
           collection(firestoreDb, collectionName),
           where('userId', '==', userId),
-          where('updatedAt', '>=', since)
+          where('updatedAt', '>', since)
         );
         const snapshot = await getDocs(q);
         if (snapshot.empty) return;
 
-        const records = snapshot.docs.map((snapshotDoc) =>
-          fromFirestore(snapshotDoc.data(), snapshotDoc.id)
-        );
         const table = db.table(collectionName) as Table<Record<string, unknown>, string>;
-        await table.bulkPut(records);
-      } catch {
-        // Local data is still valid if a delta sync fails.
+
+        for (const snapshotDoc of snapshot.docs) {
+          const record = fromFirestore(snapshotDoc.data(), snapshotDoc.id);
+          await table.put(record);
+        }
+      } catch (err) {
+        console.warn(`Delta sync failed for ${collectionName}:`, err);
       }
     })
   );
+
+  await saveLastSyncTime(syncedAt);
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// REAL-TIME SYNC â€” Firestore onSnapshot listeners so other devices see changes
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+/**
+ * Legacy wrapper kept for any call sites that still use hydrateFromFirestore.
+ * Routes to incrementalSync internally.
+ */
+export async function hydrateFromFirestore(userId: string): Promise<void> {
+  return incrementalSync(userId);
+}
+
+// ── 30-day Recycle Bin Auto-Delete ───────────────────────────────────────────
+
+/**
+ * Hard-delete windows that have been in the recycle bin for more than 30 days.
+ * Called once on app startup after local data is ready.
+ */
+export async function purgeExpiredBinItems(userId: string): Promise<void> {
+  if (typeof window === 'undefined') return;
+
+  const db = getDb();
+  const cutoff = new Date(Date.now() - BIN_TTL_MS);
+
+  const expiredWindows = await db.windows
+    .where('userId')
+    .equals(userId)
+    .filter(
+      (w) =>
+        w.inRecycleBin === true &&
+        // Use deletedAt if present, else fall back to updatedAt, then createdAt
+        ((w.deletedAt ?? w.updatedAt ?? w.createdAt) as Date) < cutoff
+    )
+    .toArray();
+
+  for (const window of expiredWindows) {
+    // Delete all entries in this window
+    const entries = await db.entries.where('windowId').equals(window.id).toArray();
+    for (const entry of entries) {
+      await db.entries.delete(entry.id);
+      await queueSync('entries', 'delete', entry.id);
+    }
+
+    await db.windows.delete(window.id);
+    await queueSync('windows', 'delete', window.id);
+  }
+}
+
+// ── Real-time Sync — surgical Dexie + Zustand patches ────────────────────────
 
 type Unsubscribe = () => void;
-
 let activeListeners: Unsubscribe[] = [];
 
 /**
  * Start real-time Firestore listeners for all collections.
- * When another device writes to Firestore, these listeners update Dexie,
- * and the store re-initialises so the UI reflects the change.
+ *
+ * KEY CHANGE vs old code: instead of calling state.init() (which reloads
+ * everything), we now patch ONLY the changed document directly into Dexie
+ * and then notify the store via a targeted action.
  */
 export function startRealtimeSync(userId: string): () => void {
-  // Tear down any previous listeners first
   stopRealtimeSync();
 
   if (typeof window === 'undefined') return () => undefined;
 
   const db = getDb();
-  const collections = REALTIME_COLLECTIONS;
 
-  // Debounce store refresh â€” multiple snapshots fire close together
-  let refreshTimer: ReturnType<typeof setTimeout> | null = null;
-  const scheduleStoreRefresh = () => {
-    if (refreshTimer) clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(async () => {
-      try {
-        // Dynamic import to avoid circular dependency
-        const { useStore } = await import('@/store/useStore');
-        const state = useStore.getState();
-        if (state.userId) {
-          await state.init(state.userId);
-        }
-      } catch {
-        // Store not ready yet â€” ignore
-      }
-    }, 500);
-  };
-
-  for (const collectionName of collections) {
+  for (const collectionName of SYNC_COLLECTIONS) {
     try {
-      const q = query(collection(firestoreDb, collectionName), where('userId', '==', userId));
+      const q = query(
+        collection(firestoreDb, collectionName),
+        where('userId', '==', userId)
+      );
 
       const unsub = onSnapshot(
         q,
         { includeMetadataChanges: true },
         async (snapshot) => {
+          // Ignore writes that are still pending locally
           const hasServerChanges = snapshot.docChanges().some(
             (change) => !change.doc.metadata.hasPendingWrites
           );
@@ -316,14 +367,17 @@ export function startRealtimeSync(userId: string): () => void {
             if (change.type === 'removed') {
               await table.delete(change.doc.id).catch(() => undefined);
             } else {
-              await table
-                .put(fromFirestore(change.doc.data(), change.doc.id))
-                .catch(() => undefined);
+              const record = fromFirestore(change.doc.data(), change.doc.id);
+              await table.put(record).catch(() => undefined);
+
+              // Surgically patch the Zustand store instead of reinitialising
+              await patchStoreWithRemoteDoc(collectionName, record);
             }
           }
 
           notifyRemoteSync(collectionName);
-          scheduleStoreRefresh();
+          // Update lastSyncTime to now so next incremental sync is fresh
+          await saveLastSyncTime();
         },
         (error) => {
           console.warn(`Realtime listener error for ${collectionName}:`, error);
@@ -339,7 +393,34 @@ export function startRealtimeSync(userId: string): () => void {
   return () => stopRealtimeSync();
 }
 
-/** Tear down all active Firestore listeners. */
+/**
+ * Patch only the affected document in the Zustand store.
+ * This replaces the old `state.init()` full-reload pattern.
+ */
+async function patchStoreWithRemoteDoc(
+  collectionName: SyncCollection,
+  record: Record<string, unknown>
+): Promise<void> {
+  try {
+    const { useStore } = await import('@/store/useStore');
+    const state = useStore.getState();
+
+    if (!state.userId) return;
+
+    if (collectionName === 'tabs') {
+      state.patchTab(record as never);
+    } else if (collectionName === 'windows') {
+      state.patchWindow(record as never);
+    } else if (collectionName === 'persons') {
+      state.patchPerson(record as never);
+    }
+    // entries/personEntries/vault are fetched fresh per-page from Dexie,
+    // so notifyRemoteSync event is sufficient to trigger page-level reloads.
+  } catch {
+    // Store not ready — ignore
+  }
+}
+
 export function stopRealtimeSync(): void {
   for (const unsub of activeListeners) {
     try {
@@ -351,9 +432,6 @@ export function stopRealtimeSync(): void {
   activeListeners = [];
 }
 
-/**
- * Setup online/offline event listener to flush sync queue.
- */
 export function setupSyncListener(): () => void {
   if (typeof window === 'undefined') return () => undefined;
 
@@ -380,5 +458,6 @@ export async function clearLocalData(): Promise<void> {
     db.personEntries.clear(),
     db.vault.clear(),
     db.syncQueue.clear(),
+    db.lastSync.clear(),
   ]);
 }

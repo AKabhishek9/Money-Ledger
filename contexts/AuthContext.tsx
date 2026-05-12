@@ -24,12 +24,13 @@ import { auth } from '@/lib/firebase';
 import { ensureSystemData } from '@/lib/bootstrap';
 import { initializeUserData } from '@/lib/firestore';
 import {
-  hydrateFromFirestore,
+  incrementalSync,
   setupSyncListener,
   clearLocalData,
   startRealtimeSync,
   stopRealtimeSync,
   processSyncQueue,
+  purgeExpiredBinItems,
 } from '@/lib/sync';
 import { useStore } from '@/store/useStore';
 
@@ -58,7 +59,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (u) {
         await prepareLocalData(u.uid);
-        // Start real-time listeners so changes from other devices appear live
+        // Start real-time listeners so changes from other devices appear live.
+        // Realtime listeners now patch only changed documents — no full reload.
         startRealtimeSync(u.uid);
       } else {
         stopRealtimeSync();
@@ -155,21 +157,41 @@ export function useAuth() {
   return ctx;
 }
 
+/**
+ * Startup sequence:
+ * 1. Flush any locally-queued writes to Firestore
+ * 2. Incremental sync  →  new device = full hydration once
+ *                         existing device = only changed docs since lastSyncTime
+ * 3. Ensure system tabs / month-window exist locally
+ * 4. Load Dexie into Zustand (renders UI immediately)
+ * 5. Purge recycle-bin items older than 30 days (fire-and-forget)
+ */
 async function prepareLocalData(userId: string): Promise<void> {
-  try {
-    await processSyncQueue();
-  } catch (error) {
-    console.warn('Sync queue processing skipped:', error);
-  }
-
-  try {
-    await hydrateFromFirestore(userId);
-  } catch (error) {
-    console.warn('Hydration partial failure:', error);
-  }
-
+  // 1. Ensure system data exists locally FIRST
   await ensureSystemData(userId);
+
+  // 2. Populate Zustand from Dexie — UI renders instantly from here
   await useStore.getState().init(userId);
+
+  // 3. Run all network sync in the background
+  (async () => {
+    // Push pending local writes first
+    try {
+      await processSyncQueue();
+    } catch {
+      // Non-fatal — offline scenario
+    }
+
+    // Incremental delta sync (or full hydration if first login on this device)
+    try {
+      await incrementalSync(userId);
+    } catch {
+      // Non-fatal — local data still valid
+    }
+
+    // Purge old bin items
+    purgeExpiredBinItems(userId).catch(() => undefined);
+  })();
 }
 
 function friendlyError(msg: string): string {

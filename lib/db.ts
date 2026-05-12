@@ -11,6 +11,11 @@ export interface SyncQueueItem {
   retries: number;
 }
 
+export interface LastSyncRecord {
+  key: string;   // e.g. 'global'
+  value: string; // ISO date string
+}
+
 export class MoneyLedgerDb extends Dexie {
   tabs!: Table<Tab, string>;
   windows!: Table<MoneyWindow, string>;
@@ -19,17 +24,32 @@ export class MoneyLedgerDb extends Dexie {
   personEntries!: Table<PersonEntry, string>;
   vault!: Table<VaultItem, string>;
   syncQueue!: Table<SyncQueueItem, number>;
+  lastSync!: Table<LastSyncRecord, string>;
 
   constructor() {
     super('MoneyLedger');
+
+    // v1 — original schema (kept for migration)
     this.version(1).stores({
-      tabs: 'id, userId, type, order',
-      windows: 'id, tabId, userId, [userId+tabId], archived, inRecycleBin, monthKey, order',
-      entries: 'id, windowId, userId, entryDate, linkedPersonId',
-      persons: 'id, userId, order',
+      tabs:          'id, userId, type, order',
+      windows:       'id, tabId, userId, [userId+tabId], archived, inRecycleBin, monthKey, order',
+      entries:       'id, windowId, userId, entryDate, linkedPersonId',
+      persons:       'id, userId, order',
       personEntries: 'id, personId, userId, entryDate, linkedEntryId',
-      vault: 'id, userId',
-      syncQueue: '++id, collection, documentId, createdAt',
+      vault:         'id, userId',
+      syncQueue:     '++id, collection, documentId, createdAt',
+    });
+
+    // v2 — adds lastSync table; all existing data is preserved automatically
+    this.version(2).stores({
+      tabs:          'id, userId, type, order',
+      windows:       'id, tabId, userId, [userId+tabId], archived, inRecycleBin, monthKey, order',
+      entries:       'id, windowId, userId, entryDate, linkedPersonId',
+      persons:       'id, userId, order',
+      personEntries: 'id, personId, userId, entryDate, linkedEntryId',
+      vault:         'id, userId',
+      syncQueue:     '++id, collection, documentId, createdAt',
+      lastSync:      'key',
     });
   }
 }
