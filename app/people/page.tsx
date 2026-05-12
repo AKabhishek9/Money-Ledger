@@ -91,6 +91,36 @@ function PeopleContent() {
 
   useEffect(() => { load(); }, [load]);
 
+
+  useEffect(() => {
+    const handleRemoteSync = (event: Event) => {
+      const collection = (event as CustomEvent<{ collection?: string }>).detail?.collection;
+
+      if (collection === 'persons') {
+        load();
+        return;
+      }
+
+      if (collection === 'personEntries') {
+        const currentPersons = useStore.getState().persons;
+        Promise.all(
+          currentPersons.map(async (person) => {
+            const entries = await localGetPersonEntries(person.id);
+            setBalances((prevBalances) => ({
+              ...prevBalances,
+              [person.id]: {
+                balance: calcTotal(entries.map((entry) => entry.amount)),
+                count: entries.length,
+              },
+            }));
+          })
+        ).catch(() => undefined);
+      }
+    };
+
+    window.addEventListener('money-ledger-remote-sync', handleRemoteSync);
+    return () => window.removeEventListener('money-ledger-remote-sync', handleRemoteSync);
+  }, [load]);
   const handleAddPerson = async () => {
     if (!user || !newName.trim()) return;
     await addPersonStore(user.uid, newName.trim(), newNote.trim());

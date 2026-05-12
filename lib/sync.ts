@@ -28,11 +28,40 @@ const SYNC_COLLECTIONS: SyncCollection[] = [
   'vault',
 ];
 
-const REALTIME_COLLECTIONS: SyncCollection[] = ['tabs', 'windows', 'persons'];
+const REALTIME_COLLECTIONS: SyncCollection[] = SYNC_COLLECTIONS;
 
 const hydrationKey = (userId: string) => 'ml_hydrated_' + userId;
 
 let isProcessing = false;
+const recentLocalSyncIds = new Map<string, number>();
+const RECENT_LOCAL_SYNC_TTL_MS = 30_000;
+
+
+function syncDocumentKey(collectionName: SyncCollection, documentId: string): string {
+  return `${collectionName}:${documentId}`;
+}
+
+function rememberLocalSync(collectionName: SyncCollection, documentId: string): void {
+  recentLocalSyncIds.set(syncDocumentKey(collectionName, documentId), Date.now());
+}
+
+function isRecentLocalSync(collectionName: SyncCollection, documentId: string): boolean {
+  const now = Date.now();
+  for (const [key, createdAt] of recentLocalSyncIds) {
+    if (now - createdAt > RECENT_LOCAL_SYNC_TTL_MS) {
+      recentLocalSyncIds.delete(key);
+    }
+  }
+
+  return recentLocalSyncIds.has(syncDocumentKey(collectionName, documentId));
+}
+
+function notifyRemoteSync(collectionName: SyncCollection): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent('money-ledger-remote-sync', { detail: { collection: collectionName } })
+  );
+}
 
 /**
  * Recursively convert Date objects (and date-like ISO strings) to Firestore Timestamps.
@@ -121,13 +150,15 @@ export async function processSyncQueue(): Promise<void> {
           await deleteDoc(doc(firestoreDb, item.collection, item.documentId));
         }
 
+        rememberLocalSync(item.collection, item.documentId);
         await db.syncQueue.delete(item.id);
       } catch (err) {
         console.warn(`Sync failed for ${item.collection}/${item.documentId}:`, err);
         const retries = item.retries + 1;
 
         if (retries >= 5) {
-          await db.syncQueue.delete(item.id);
+          rememberLocalSync(item.collection, item.documentId);
+        await db.syncQueue.delete(item.id);
         } else {
           await db.syncQueue.update(item.id, { retries });
         }
@@ -271,7 +302,10 @@ export function startRealtimeSync(userId: string): () => void {
           );
 
           const genuinelyRemoteChanges = snapshot.docChanges().filter(
-            (change) => !queuedIds.has(change.doc.id) && !change.doc.metadata.hasPendingWrites
+            (change) =>
+              !queuedIds.has(change.doc.id) &&
+              !isRecentLocalSync(collectionName, change.doc.id) &&
+              !change.doc.metadata.hasPendingWrites
           );
 
           if (genuinelyRemoteChanges.length === 0) return;
@@ -288,6 +322,7 @@ export function startRealtimeSync(userId: string): () => void {
             }
           }
 
+          notifyRemoteSync(collectionName);
           scheduleStoreRefresh();
         },
         (error) => {

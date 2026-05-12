@@ -51,7 +51,13 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') load();
     };
+    const handleRemoteSync = (event: Event) => {
+      const collection = (event as CustomEvent<{ collection?: string }>).detail?.collection;
+      if (collection === 'entries') load();
+    };
+
     document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('money-ledger-remote-sync', handleRemoteSync);
 
     // Also poll every 30s while visible
     const interval = setInterval(() => {

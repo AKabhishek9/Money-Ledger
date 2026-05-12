@@ -46,7 +46,13 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') load();
     };
+    const handleRemoteSync = (event: Event) => {
+      const collection = (event as CustomEvent<{ collection?: string }>).detail?.collection;
+      if (collection === 'personEntries') load();
+    };
+
     document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('money-ledger-remote-sync', handleRemoteSync);
 
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') load();

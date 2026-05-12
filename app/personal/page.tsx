@@ -163,6 +163,33 @@ function PersonalContent() {
     return () => document.removeEventListener('visibilitychange', handleVisible);
   }, [windows]);
 
+
+  useEffect(() => {
+    const handleRemoteSync = (event: Event) => {
+      const collection = (event as CustomEvent<{ collection?: string }>).detail?.collection;
+
+      if (collection === 'windows' || collection === 'tabs') {
+        load();
+        return;
+      }
+
+      if (collection === 'entries' && windows.length > 0) {
+        windows.forEach(async (w) => {
+          const entries = await localGetEntries(w.id);
+          setWindowStats((prev) => ({
+            ...prev,
+            [w.id]: {
+              total: entries.reduce((s, e) => s + e.amount, 0),
+              count: entries.length,
+            },
+          }));
+        });
+      }
+    };
+
+    window.addEventListener('money-ledger-remote-sync', handleRemoteSync);
+    return () => window.removeEventListener('money-ledger-remote-sync', handleRemoteSync);
+  }, [load, windows]);
   const handleAddWindow = async () => {
     if (!user || !personalTab || !newWindowTitle.trim()) return;
     await addWindow(user.uid, personalTab.id, newWindowTitle.trim());
