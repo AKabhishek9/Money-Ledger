@@ -55,6 +55,26 @@ function PeopleContent() {
   const prevPersonIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const prev = prevPersonIdRef.current;
+    prevPersonIdRef.current = personId;
+
+    if (prev !== null && personId === null && persons.length > 0) {
+      // User navigated back — refresh balances for all persons
+      persons.forEach(async (p) => {
+        const entries = await localGetPersonEntries(p.id);
+        setBalances((prevBalances) => ({
+          ...prevBalances,
+          [p.id]: {
+            balance: calcTotal(entries.map((e) => e.amount)),
+            count: entries.length,
+            recentEntries: entries.slice(-5),
+          },
+        }));
+      });
+    }
+  }, [personId, persons]);
+
+  useEffect(() => {
     if (cachedPersons.length === 0) return;
     setPersons(cachedPersons);
     setLoading(false);

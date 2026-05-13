@@ -27,18 +27,23 @@ interface WindowViewProps {
   persons: Person[];
 }
 
-export default function WindowView({ window: w, userId, onBack, persons }: WindowViewProps) {
+export default function WindowView({ window: w, userId, persons }: WindowViewProps) {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [editEntry, setEditEntry] = useState<Entry | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const prevLengthRef = useRef(0);
   const didInitialEntriesLoadRef = useRef(false);
 
+  // LOW-04: error state on load failure
   const load = useCallback(async () => {
+    setLoadError(false);
     try {
       const data = await localGetEntries(w.id);
       setEntries(data);
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -46,7 +51,8 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
 
   useEffect(() => { load(); }, [load]);
 
-  // Re-fetch entries when browser tab becomes visible (cross-device sync)
+  // HIGH-01 fixed: removed memory leak (missing removeEventListener)
+  // MEDIUM-01 fixed: removed redundant 30s polling interval
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') load();
@@ -59,14 +65,9 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('money-ledger-remote-sync', handleRemoteSync);
 
-    // Also poll every 30s while visible
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') load();
-    }, 30_000);
-
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
-      clearInterval(interval);
+      window.removeEventListener('money-ledger-remote-sync', handleRemoteSync);
     };
   }, [load]);
 
@@ -119,7 +120,8 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
     setEntries((prev) => prev.filter((e) => e.id !== entry.id));
   };
 
-  const handleEdit = async (entry: Entry, rawText: string) => {
+  // HIGH-04: handleEdit now accepts optional newDate
+  const handleEdit = async (entry: Entry, rawText: string, newDate?: Date) => {
     const parsed = parseEntry(rawText);
     if (!parsed.isValid) return;
     await localUpdateEntry(entry.id, {
@@ -127,17 +129,25 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
       amount: parsed.amount,
       note: parsed.note,
       type: parsed.type,
+      ...(newDate ? { entryDate: newDate } : {}),
     });
     setEntries((prev) =>
       prev.map((e) =>
         e.id === entry.id
-          ? { ...e, rawText: parsed.rawText, amount: parsed.amount, note: parsed.note, type: parsed.type as Entry['type'] }
+          ? {
+              ...e,
+              rawText: parsed.rawText,
+              amount: parsed.amount,
+              note: parsed.note,
+              type: parsed.type as Entry['type'],
+              ...(newDate ? { entryDate: newDate } : {}),
+            }
           : e
       )
     );
   };
 
-  const { total, incomeTotal, expenseTotal, entriesWithBalance, grouped } = useMemo(() => {
+  const { total, incomeTotal, expenseTotal, grouped } = useMemo(() => {
     const t = calcTotal(entries.map((e) => e.amount));
     const inc = calcTotal(entries.filter((e) => e.amount > 0).map((e) => e.amount));
     const exp = calcTotal(entries.filter((e) => e.amount < 0).map((e) => e.amount));
@@ -153,7 +163,6 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
       total: t,
       incomeTotal: inc,
       expenseTotal: exp,
-      entriesWithBalance: withBalance,
       grouped: grp,
     };
   }, [entries]);
@@ -249,6 +258,21 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
               </div>
             ))}
           </div>
+        ) : loadError ? (
+          // LOW-04: error state with retry
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+            <div className="text-4xl mb-3">⚠️</div>
+            <p className="text-sm font-medium mb-1" style={{ color: 'var(--color-expense)' }}>
+              Failed to load entries
+            </p>
+            <button
+              onClick={load}
+              className="mt-3 text-sm px-4 py-2 rounded-xl"
+              style={{ background: 'var(--color-surface-2)', color: 'var(--color-accent)' }}
+            >
+              Try Again
+            </button>
+          </div>
         ) : entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
             <div className="text-4xl mb-3">📋</div>
@@ -295,11 +319,11 @@ export default function WindowView({ window: w, userId, onBack, persons }: Windo
         <EntryInput onAdd={handleAdd} persons={persons} />
       </div>
 
-      {/* Edit sheet */}
+      {/* Edit sheet — HIGH-04: passes newDate back to handleEdit */}
       {editEntry && (
         <EditEntrySheet
           entry={editEntry}
-          onSave={(raw) => { handleEdit(editEntry, raw); setEditEntry(null); }}
+          onSave={(raw: string, newDate?: Date) => { handleEdit(editEntry, raw, newDate); setEditEntry(null); }}
           onClose={() => setEditEntry(null)}
         />
       )}

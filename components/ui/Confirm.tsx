@@ -23,6 +23,7 @@ export default function Confirm({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-6 animate-fade-in"
       style={{ background: 'var(--color-modal-backdrop)' }}
+      onClick={(e) => e.target === e.currentTarget && onCancel()}
     >
       <div
         className="w-full max-w-sm rounded-2xl p-5 animate-scale-in"

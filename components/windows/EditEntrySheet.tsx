@@ -9,17 +9,28 @@ type AnyEntry = Entry | PersonEntry;
 
 interface EditEntrySheetProps {
   entry: AnyEntry;
-  onSave: (rawText: string) => void;
+  onSave: (rawText: string, newDate?: Date) => void;
   onClose: () => void;
+}
+
+function toLocalDateString(d: Date | string): string {
+  const date = new Date(d);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export default function EditEntrySheet({ entry, onSave, onClose }: EditEntrySheetProps) {
   const [raw, setRaw] = useState(entry.rawText);
+  const [editDate, setEditDate] = useState(() => toLocalDateString(entry.entryDate));
   const parsed = parseEntry(raw);
 
   const handleSave = () => {
     if (!parsed.isValid) return;
-    onSave(raw.trim());
+    const [year, month, day] = editDate.split('-').map(Number);
+    const localDate = new Date(year, month - 1, day, 12, 0, 0);
+    onSave(raw.trim(), localDate);
   };
 
   return (
@@ -41,6 +52,23 @@ export default function EditEntrySheet({ entry, onSave, onClose }: EditEntryShee
             }}
             autoFocus
             spellCheck={false}
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-medium mb-2 block" style={{ color: 'var(--color-text-muted)' }}>
+            Entry Date
+          </label>
+          <input
+            type="date"
+            value={editDate}
+            onChange={(e) => setEditDate(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+            style={{
+              background: 'var(--color-surface-2)',
+              border: '1px solid var(--color-border)',
+              color: 'var(--color-text)',
+            }}
           />
         </div>
 

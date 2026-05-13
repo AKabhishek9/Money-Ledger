@@ -19,6 +19,7 @@ interface AddPersonEntryInput {
   rawText: string;
   amount: number;
   note: string;
+  type?: string;
   entryDate: Date;
   linkedEntryId?: string;
   linkedWindowId?: string;
@@ -65,6 +66,7 @@ export async function localAddPersonEntry(
     rawText: data.rawText,
     amount: data.amount,
     note: data.note,
+    type: data.type,
     entryDate: data.entryDate,
     linkedEntryId: data.linkedEntryId,
     linkedWindowId: data.linkedWindowId,

@@ -79,6 +79,7 @@ export interface PersonEntry {
   rawText: string;
   amount: number; // positive = they owe you, negative = you owe them
   note: string;
+  type?: string;
   entryDate: Date;
   createdAt: Date;
   updatedAt: Date;

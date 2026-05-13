@@ -22,7 +22,7 @@ import {
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { ensureSystemData } from '@/lib/bootstrap';
-import { initializeUserData } from '@/lib/firestore';
+
 import {
   incrementalSync,
   setupSyncListener,
@@ -87,8 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(async (email: string, password: string) => {
     setError(null);
     try {
-      const r = await signInWithEmailAndPassword(auth, email, password);
-      await initializeUserData(r.user.uid);
+      await signInWithEmailAndPassword(auth, email, password);
+      // onAuthStateChanged fires → prepareLocalData → ensureSystemData handles everything
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Sign in failed.';
       setError(friendlyError(msg));
@@ -101,7 +101,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const r = await createUserWithEmailAndPassword(auth, email, password);
       await updateProfile(r.user, { displayName: name });
-      await initializeUserData(r.user.uid);
+      // onAuthStateChanged fires → prepareLocalData → ensureSystemData handles everything
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Sign up failed.';
       setError(friendlyError(msg));
@@ -113,8 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const provider = new GoogleAuthProvider();
-      const r = await signInWithPopup(auth, provider);
-      await initializeUserData(r.user.uid);
+      await signInWithPopup(auth, provider);
+      // onAuthStateChanged fires → prepareLocalData → ensureSystemData handles everything
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Google sign in failed.';
       setError(friendlyError(msg));

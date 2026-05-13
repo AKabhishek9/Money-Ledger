@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Settings, Archive, Trash2, LogOut } from 'lucide-react';
+import { Plus, Settings, Archive, LogOut } from 'lucide-react';
 import BottomSheet from '@/components/ui/BottomSheet';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStore } from '@/store/useStore';

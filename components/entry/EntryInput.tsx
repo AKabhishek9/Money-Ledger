@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Send, UserRound, X } from 'lucide-react';
 import { parseEntry, formatAmount } from '@/lib/parser';
 import type { Person } from '@/lib/types';
@@ -35,7 +35,6 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
   const [showPersonPicker, setShowPersonPicker] = useState(false);
   const [entryDate, setEntryDate] = useState(getLocalDateString);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -54,10 +53,8 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
       // If viewport shrank by more than 100px, keyboard is open
       if (diff > 100) {
         setKeyboardOpen(true);
-        setKeyboardHeight(diff);
       } else {
         setKeyboardOpen(false);
-        setKeyboardHeight(0);
       }
     };
 
@@ -83,7 +80,10 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
 
     setLoading(true);
     try {
-      await onAdd(p.rawText, p.amount, p.note, p.type, new Date(entryDate), linkedPerson?.id, linkedPerson?.name);
+      const [year, month, day] = entryDate.split('-').map(Number);
+      const localDate = new Date(year, month - 1, day, 12, 0, 0);
+      
+      await onAdd(p.rawText, p.amount, p.note, p.type, localDate, linkedPerson?.id, linkedPerson?.name);
       setAmountInput('');
       setNoteInput('');
       setEntryDate(getLocalDateString());
@@ -95,32 +95,32 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
     }
   }, [combined, loading, linkedPerson, onAdd, entryDate]);
 
-  const handleKey = (e: React.KeyboardEvent) => {
+  const handleKey = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter') handleSubmit();
-  };
+  }, [handleSubmit]);
 
   const isIncome = parsed?.isValid && parsed.amount > 0;
   const isExpense = parsed?.isValid && parsed.amount < 0;
 
-  const toggleIncome = () => {
+  const toggleIncome = useCallback(() => {
     if (amountInput.startsWith('-')) {
       setAmountInput('+' + amountInput.substring(1));
     } else if (!amountInput.startsWith('+')) {
       setAmountInput('+' + amountInput);
     }
     inputRef.current?.focus();
-  };
+  }, [amountInput]);
 
-  const toggleExpense = () => {
+  const toggleExpense = useCallback(() => {
     if (amountInput.startsWith('+')) {
       setAmountInput('-' + amountInput.substring(1));
     } else if (!amountInput.startsWith('-')) {
       setAmountInput('-' + amountInput);
     }
     inputRef.current?.focus();
-  };
+  }, [amountInput]);
 
-  const inOutToggle = (
+  const inOutToggle = useMemo(() => (
     <div className="flex items-center rounded-xl overflow-hidden text-xs shrink-0" style={{ border: '1px solid var(--color-border)' }}>
       <button
         type="button"
@@ -146,7 +146,7 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
         - Debit
       </button>
     </div>
-  );
+  ), [amountInput, toggleIncome, toggleExpense]);
 
   return (
     <div

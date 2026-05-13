@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { MoreVertical, Trash2, Pencil, ChevronRight } from 'lucide-react';
+import { MoreVertical, Trash2, Pencil } from 'lucide-react';
 import { formatAmount } from '@/lib/parser';
 import type { Person, PersonEntry } from '@/lib/types';
 

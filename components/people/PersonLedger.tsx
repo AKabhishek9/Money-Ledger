@@ -25,15 +25,19 @@ interface PersonLedgerProps {
 export default function PersonLedger({ person, userId }: PersonLedgerProps) {
   const [entries, setEntries] = useState<PersonEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [editEntry, setEditEntry] = useState<PersonEntry | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
   const prevLengthRef = useRef(0);
   const didInitialEntriesLoadRef = useRef(false);
 
   const load = useCallback(async () => {
+    setLoadError(false);
     try {
       const data = await localGetPersonEntries(person.id);
       setEntries(data);
+    } catch {
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -54,13 +58,9 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('money-ledger-remote-sync', handleRemoteSync);
 
-    const interval = setInterval(() => {
-      if (document.visibilityState === 'visible') load();
-    }, 30_000);
-
     return () => {
       document.removeEventListener('visibilitychange', handleVisibility);
-      clearInterval(interval);
+      window.removeEventListener('money-ledger-remote-sync', handleRemoteSync);
     };
   }, [load]);
 
@@ -80,6 +80,7 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
       rawText,
       amount,
       note,
+      type,
       entryDate,
     });
     setEntries((prev) => [...prev, entry]);
@@ -90,18 +91,25 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
     setEntries((prev) => prev.filter((x) => x.id !== e.id));
   };
 
-  const handleEdit = async (entry: PersonEntry, rawText: string) => {
+  const handleEdit = async (entry: PersonEntry, rawText: string, newDate?: Date) => {
     const parsed = parseEntry(rawText);
     if (!parsed.isValid) return;
     await localUpdatePersonEntry(entry.id, {
       rawText: parsed.rawText,
       amount: parsed.amount,
       note: parsed.note,
+      ...(newDate ? { entryDate: newDate } : {}),
     });
     setEntries((prev) =>
       prev.map((e) =>
         e.id === entry.id
-          ? { ...e, rawText: parsed.rawText, amount: parsed.amount, note: parsed.note }
+          ? { 
+              ...e, 
+              rawText: parsed.rawText, 
+              amount: parsed.amount, 
+              note: parsed.note,
+              ...(newDate ? { entryDate: newDate } : {}),
+            }
           : e
       )
     );
@@ -216,6 +224,20 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
               Loading…
             </p>
           </div>
+        ) : loadError ? (
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+            <div className="text-4xl mb-3">⚠️</div>
+            <p className="text-sm font-medium mb-1" style={{ color: 'var(--color-expense)' }}>
+              Failed to load entries
+            </p>
+            <button
+              onClick={load}
+              className="mt-3 text-sm px-4 py-2 rounded-xl"
+              style={{ background: 'var(--color-surface-2)', color: 'var(--color-accent)' }}
+            >
+              Try Again
+            </button>
+          </div>
         ) : entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center px-6">
             <div className="text-4xl mb-3">📒</div>
@@ -253,7 +275,7 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
       {editEntry && (
         <EditEntrySheet
           entry={editEntry}
-          onSave={(raw) => { handleEdit(editEntry, raw); setEditEntry(null); }}
+          onSave={(raw: string, newDate?: Date) => { handleEdit(editEntry, raw, newDate); setEditEntry(null); }}
           onClose={() => setEditEntry(null)}
         />
       )}

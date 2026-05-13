@@ -5,12 +5,14 @@ import { queueSync } from '@/lib/sync';
 import { v4 as uuid } from 'uuid';
 import { getMonthKey, getMonthWindowTitle } from '@/lib/utils';
 
-let bootstrapPromise: Promise<void> | null = null;
+const bootstrapPromises = new Map<string, Promise<void>>();
 
 export async function ensureSystemData(userId: string): Promise<void> {
-  if (bootstrapPromise) return bootstrapPromise;
+  if (bootstrapPromises.has(userId)) {
+    return bootstrapPromises.get(userId)!;
+  }
 
-  bootstrapPromise = (async () => {
+  const promise = (async () => {
     const db = getDb();
     const now = new Date();
 
@@ -78,9 +80,11 @@ export async function ensureSystemData(userId: string): Promise<void> {
     }
   })();
 
+  bootstrapPromises.set(userId, promise);
+
   try {
-    await bootstrapPromise;
+    await promise;
   } finally {
-    bootstrapPromise = null;
+    bootstrapPromises.delete(userId);
   }
 }

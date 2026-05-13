@@ -209,19 +209,16 @@ function PersonalContent() {
 
   const handlePin = async (w: MoneyWindow) => {
     await updateWindowStore(w.id, { pinned: !w.pinned });
-    load();
   };
 
   const handleArchive = async (w: MoneyWindow) => {
     await updateWindowStore(w.id, { archived: true });
-    load();
   };
 
   const handleDelete = async (w: MoneyWindow) => {
     await softDeleteWindow(w.id);
     setDeleteTarget(null);
     if (windowId === w.id) router.push('/personal');
-    load();
   };
 
   const handleRename = async () => {
@@ -229,7 +226,6 @@ function PersonalContent() {
     await updateWindowStore(renameTarget.id, { title: renameTitle.trim() });
     setRenameTarget(null);
     setRenameTitle('');
-    load();
   };
 
   // ── Window detail view ──
@@ -342,7 +338,7 @@ function PersonalContent() {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto pt-3 pb-24 px-4">
-          <div className="columns-2 sm:columns-3 md:columns-4 gap-3 space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
             {windows.map((w) => (
               <div key={w.id} className="break-inside-avoid">
                 <WindowCard

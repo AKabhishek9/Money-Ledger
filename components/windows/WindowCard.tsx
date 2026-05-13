@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Calendar, MoreVertical, Pin, Archive, Trash2, Pencil } from 'lucide-react';
+import { MoreVertical, Pin, Archive, Trash2, Pencil } from 'lucide-react';
 import { formatAmount } from '@/lib/parser';
 import type { MoneyWindow, Entry } from '@/lib/types';
 

@@ -37,7 +37,7 @@ export default function BottomSheet({ title, onClose, children, height = 'auto' 
         }}
       >
         {/* Handle bar */}
-        <div className="flex shrink-0 justify-center pb-1 pt-2.5">
+        <div className="flex shrink-0 justify-center pb-1 pt-2.5 pointer-events-none">
           <div className="rounded-full" style={{ width: 40, height: 5, background: 'var(--color-border-2)' }} />
         </div>
 

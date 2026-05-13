@@ -1,13 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { LogOut, User, Shield, Info, ChevronRight, BookOpen, Archive } from 'lucide-react';
+import { LogOut, Shield, Info, ChevronRight, BookOpen, Archive } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/auth/AuthGuard';
 import AppLayout from '@/components/layout/AppLayout';
 import Header from '@/components/layout/Header';
 import Confirm from '@/components/ui/Confirm';
 import { useAuth } from '@/contexts/AuthContext';
+import packageJson from '../../package.json';
 
 export default function SettingsPage() {
   return (
@@ -77,7 +78,7 @@ function SettingsContent() {
             {
               icon: <BookOpen size={18} />,
               label: 'Money Ledger',
-              value: 'v2.2.0',
+              value: `v${packageJson.version}`,
             },
             {
               icon: <Shield size={18} />,

@@ -48,13 +48,23 @@ function VaultContent() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Re-fetch vault items when browser tab becomes visible (cross-device sync)
+  // Re-fetch vault items when browser tab becomes visible or remote sync happens
   useEffect(() => {
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') load();
     };
+    const handleRemoteSync = (event: Event) => {
+      const collection = (event as CustomEvent<{ collection?: string }>).detail?.collection;
+      if (collection === 'vault') load();
+    };
+
     document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('money-ledger-remote-sync', handleRemoteSync);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('money-ledger-remote-sync', handleRemoteSync);
+    };
   }, [load]);
 
   const handleAdd = async (type: VaultType, title: string, fields: Record<string, string>) => {
