@@ -8,10 +8,12 @@ const withPWA = require('next-pwa')({
   runtimeCaching: [
     {
       urlPattern: /^https:\/\/money-ledger.*\.web\.app\/.*/,
-      handler: 'NetworkFirst',
+      handler: 'CacheFirst',
       options: {
         cacheName: 'pages',
-        networkTimeoutSeconds: 3,
+        expiration: {
+          maxAgeSeconds: 24 * 60 * 60, // 1 day
+        },
       },
     },
     {
