@@ -15,7 +15,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     if (!loading && !user && !storeUserId) router.replace('/login');
   }, [user, loading, router, storeUserId]);
 
-  if (loading && !storeUserId) {
+  // If store already has a userId (fast-path loaded local data),
+  // show children immediately — don't wait for Firebase Auth to confirm.
+  // This prevents the loading screen from showing offline.
+  if (storeUserId) {
+    return <>{children}</>;
+  }
+
+  if (loading) {
     return <Loader fullScreen label="Loading Money Ledger..." />;
   }
 
