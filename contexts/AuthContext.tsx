@@ -55,27 +55,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // 1. FAST-PATH: If we have a cached UID and are offline (or just to be fast), 
-    // we can try to "peek" at the local data immediately.
+    // 1. FAST-PATH: If we have a cached UID, load local data immediately
     const cachedUid = localStorage.getItem('money_ledger_last_uid');
     let fastPathTriggered = false;
 
     if (cachedUid) {
       fastPathTriggered = true;
+      // Load Dexie into store RIGHT NOW — synchronously starts, sets storeUserId fast
       prepareLocalData(cachedUid).catch(() => undefined);
-      // We don't setLoading(false) yet, we wait for official Firebase or timeout
     }
 
     // 2. TIMEOUT SAFETY: If auth takes too long, stop the loader.
     const timeoutId = setTimeout(() => {
       setLoading(false);
-    }, 2500); // 2.5s is a generous buffer for slow network
+    }, 2500);
 
     const unsub = onAuthStateChanged(auth, async (u) => {
       clearTimeout(timeoutId);
 
       if (u) {
-        // Official user found
+        // Official user found online
         localStorage.setItem('money_ledger_last_uid', u.uid);
         try {
           await prepareLocalData(u.uid);
@@ -83,11 +82,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           console.error('Failed to prepare local data:', err);
         }
       } else {
-        // No official user
+        // Firebase returned null — two possible reasons:
+        // A) User is genuinely signed out
+        // B) User is offline and Firebase cannot verify the token
+        //
+        // If we have a cachedUid AND we are offline, case B applies.
+        // Do NOT reset the store — the user IS logged in, Firebase just
+        // cannot confirm it without internet.
+        const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+        const hasCachedSession = !!localStorage.getItem('money_ledger_last_uid');
+
+        if (isOffline && hasCachedSession) {
+          // Offline with a valid cached session — trust local data
+          // Just unblock the loading screen — store already has data from fast-path
+          setLoading(false);
+          return;
+        }
+
+        // Genuinely signed out — clear everything
         stopRealtimeSync();
         useStore.getState().reset();
-        // If we were using a fast-path UID but it turns out we are logged out,
-        // we should stop pretending we are logged in.
         if (fastPathTriggered) {
           localStorage.removeItem('money_ledger_last_uid');
         }
