@@ -39,6 +39,7 @@ next-env.d.ts
 .firebase/
 node_modules
 
-# local agent/workflow artifacts
+#workflow artifacts
 .handleWorkflow/
 overview/
+ProjectArchitecture

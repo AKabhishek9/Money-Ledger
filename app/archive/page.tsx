@@ -24,7 +24,7 @@ export default function ArchivePage() {
 }
 
 function ArchiveContent() {
-  const { user } = useAuth();
+  const { userId } = useAuth();
   const {
     hardDeleteWindow,
     restoreWindow,
@@ -38,22 +38,22 @@ function ArchiveContent() {
   const [deleteTarget, setDeleteTarget] = useState<MoneyWindow | null>(null);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
     setLoading(true);
     try {
       const db = getDb();
       const [archivedWins, recycledWins, tabList] = await Promise.all([
         db.windows
           .where('userId')
-          .equals(user.uid)
+          .equals(userId)
           .filter((w) => w.archived && !w.inRecycleBin)
           .toArray(),
         db.windows
           .where('userId')
-          .equals(user.uid)
+          .equals(userId)
           .filter((w) => w.inRecycleBin)
           .toArray(),
-        db.tabs.where('userId').equals(user.uid).toArray(),
+        db.tabs.where('userId').equals(userId).toArray(),
       ]);
       setTabs(tabList);
       setArchived(archivedWins);
@@ -61,7 +61,7 @@ function ArchiveContent() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => { load(); }, [load]);
 

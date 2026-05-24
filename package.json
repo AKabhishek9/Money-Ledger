@@ -1,10 +1,10 @@
 {
   "name": "money-ledger",
-  "version": "2.3.5",
+  "version": "2.4.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build --webpack",
+    "build": "next build --webpack && node scripts/generate-sw.mjs",
     "start": "next start",
     "lint": "eslint ."
   },
@@ -14,7 +14,6 @@
     "firebase": "^12.12.1",
     "lucide-react": "^1.14.0",
     "next": "16.2.4",
-    "next-pwa": "^5.6.0",
     "papaparse": "^5.4.1",
     "pdf-lib": "^1.17.1",
     "react": "19.2.4",

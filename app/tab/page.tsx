@@ -30,7 +30,7 @@ export default function TabPage() {
 }
 
 function TabContent() {
-  const { user } = useAuth();
+  const { userId } = useAuth();
   const {
     addWindow,
     deleteTab,
@@ -78,7 +78,7 @@ function TabContent() {
   }, [cachedTab, cachedWindows, tabId, windowsByTabId]);
 
   const load = useCallback(async () => {
-    if (!user || !tabId) return;
+    if (!userId || !tabId) return;
     const storeState = useStore.getState();
     const cachedStoreTab = storeState.tabs.find((item) => item.id === tabId) || null;
     const cachedStoreWindows = storeState.windowsByTabId[tabId];
@@ -92,12 +92,12 @@ function TabContent() {
     }
 
     try {
-      const tabs = await loadTabs(user.uid);
+      const tabs = await loadTabs(userId);
       const t = tabs.find((x) => x.id === tabId) || null;
       setTab(t);
       if (!t) { setLoading(false); return; }
 
-      const wins = await loadWindows(user.uid, tabId);
+      const wins = await loadWindows(userId, tabId);
       setWindows(wins);
       setLoading(false);
 
@@ -115,13 +115,13 @@ function TabContent() {
     } finally {
       setLoading(false);
     }
-  }, [user, tabId, loadTabs, loadWindows]);
+  }, [userId, tabId, loadTabs, loadWindows]);
 
   useEffect(() => { load(); }, [load]);
 
   const handleAddWindow = async () => {
-    if (!user || !tabId || !newWindowTitle.trim()) return;
-    await addWindow(user.uid, tabId, newWindowTitle.trim());
+    if (!userId || !tabId || !newWindowTitle.trim()) return;
+    await addWindow(userId, tabId, newWindowTitle.trim());
     setNewWindowTitle('');
     setShowAddSheet(false);
     load();
@@ -181,7 +181,7 @@ function TabContent() {
         <div className="flex-1 min-h-0 flex flex-col">
           <WindowView
             window={selectedWindow}
-            userId={user!.uid}
+            userId={userId!}
             onBack={() => router.push(`/tab?t=${tabId}`)}
             persons={persons}
           />

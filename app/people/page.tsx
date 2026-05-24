@@ -30,7 +30,7 @@ export default function PeoplePage() {
 }
 
 function PeopleContent() {
-  const { user } = useAuth();
+  const { userId } = useAuth();
   const {
     addPerson: addPersonStore,
     deletePerson: deletePersonStore,
@@ -81,7 +81,7 @@ function PeopleContent() {
   }, [cachedPersons]);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
     const storePersons = useStore.getState().persons;
     if (storePersons.length > 0) {
       setPersons(storePersons);
@@ -91,7 +91,7 @@ function PeopleContent() {
     }
 
     try {
-      const pList = await loadPersons(user.uid);
+      const pList = await loadPersons(userId);
       setPersons(pList);
       const bal: Record<string, { balance: number; count: number; recentEntries: PersonEntry[] }> = {};
       await Promise.all(
@@ -108,7 +108,7 @@ function PeopleContent() {
     } finally {
       setLoading(false);
     }
-  }, [user, loadPersons]);
+  }, [userId, loadPersons]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -144,8 +144,8 @@ function PeopleContent() {
     return () => window.removeEventListener('money-ledger-remote-sync', handleRemoteSync);
   }, [load]);
   const handleAddPerson = async () => {
-    if (!user || !newName.trim()) return;
-    await addPersonStore(user.uid, newName.trim(), newNote.trim());
+    if (!userId || !newName.trim()) return;
+    await addPersonStore(userId, newName.trim(), newNote.trim());
     setNewName('');
     setNewNote('');
     setShowAddSheet(false);
@@ -178,7 +178,7 @@ function PeopleContent() {
           onBack={() => router.push('/people')}
         />
         <div className="flex-1 overflow-hidden flex flex-col">
-          <PersonLedger person={selectedPerson} userId={user!.uid} />
+          <PersonLedger person={selectedPerson} userId={userId!} />
         </div>
       </div>
     );

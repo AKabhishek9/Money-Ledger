@@ -33,7 +33,7 @@ export default function PersonalPage() {
 }
 
 function PersonalContent() {
-  const { user } = useAuth();
+  const { userId } = useAuth();
   const {
     addWindow,
     loadWindows,
@@ -104,7 +104,7 @@ function PersonalContent() {
     }
   }, [windowId, windows]);
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
     const storeState = useStore.getState();
     const cachedTab = storeState.tabs.find((tab) => tab.type === 'personal') || null;
     const cachedWindows = cachedTab ? storeState.windowsByTabId[cachedTab.id] : undefined;
@@ -118,9 +118,9 @@ function PersonalContent() {
     }
 
     try {
-      await ensureSystemData(user.uid);
+      await ensureSystemData(userId);
       const db = getDb();
-      const tabs = await db.tabs.where('userId').equals(user.uid).toArray();
+      const tabs = await db.tabs.where('userId').equals(userId).toArray();
       const pTab = tabs.find((t) => t.type === 'personal') || null;
       setPersonalTab(pTab);
 
@@ -129,7 +129,7 @@ function PersonalContent() {
         return;
       }
 
-      const wins = await loadWindows(user.uid, pTab.id);
+      const wins = await loadWindows(userId, pTab.id);
       setWindows(wins);
       setLoading(false);
 
@@ -147,7 +147,7 @@ function PersonalContent() {
     } finally {
       setLoading(false);
     }
-  }, [user, addWindow, loadWindows]);
+  }, [userId, addWindow, loadWindows]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
@@ -200,8 +200,8 @@ function PersonalContent() {
     return () => window.removeEventListener('money-ledger-remote-sync', handleRemoteSync);
   }, [load, windows]);
   const handleAddWindow = async () => {
-    if (!user || !personalTab || !newWindowTitle.trim()) return;
-    await addWindow(user.uid, personalTab.id, newWindowTitle.trim());
+    if (!userId || !personalTab || !newWindowTitle.trim()) return;
+    await addWindow(userId, personalTab.id, newWindowTitle.trim());
     setNewWindowTitle('');
     setShowAddSheet(false);
     load();
@@ -249,7 +249,7 @@ function PersonalContent() {
         <div className="flex-1 min-h-0 flex flex-col">
           <WindowView
             window={selectedWindow}
-            userId={user!.uid}
+            userId={userId!}
             onBack={() => router.push('/personal')}
             persons={persons}
           />

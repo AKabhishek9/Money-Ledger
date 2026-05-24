@@ -34,7 +34,7 @@ export default function SearchPage() {
 }
 
 function SearchContent() {
-  const { user } = useAuth();
+  const { userId } = useAuth();
   const router = useRouter();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -44,10 +44,10 @@ function SearchContent() {
 
   // Pre-warm the search pool on mount
   useEffect(() => {
-    if (user?.uid) {
-      loadSearchResults(user.uid).then(setAllResults).catch(() => undefined);
+    if (userId) {
+      loadSearchResults(userId).then(setAllResults).catch(() => undefined);
     }
-  }, [user]);
+  }, [userId]);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const doSearch = useCallback(

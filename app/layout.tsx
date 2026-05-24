@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter, Fira_Code } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
+import RegisterSW from '@/components/sw/RegisterSW';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -40,7 +41,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${inter.variable} ${firaCode.variable}`}>
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <RegisterSW />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

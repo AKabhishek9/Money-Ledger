@@ -26,7 +26,7 @@ export default function VaultPage() {
 }
 
 function VaultContent() {
-  const { user } = useAuth();
+  const { userId } = useAuth();
   const [items, setItems] = useState<VaultItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -35,16 +35,16 @@ function VaultContent() {
   const [search, setSearch] = useState('');
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
     setLoading(true);
     try {
       const db = getDb();
-      const data = await db.vault.where('userId').equals(user.uid).sortBy('createdAt');
+      const data = await db.vault.where('userId').equals(userId).sortBy('createdAt');
       setItems(data.reverse());
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -68,12 +68,12 @@ function VaultContent() {
   }, [load]);
 
   const handleAdd = async (type: VaultType, title: string, fields: Record<string, string>) => {
-    if (!user) return;
+    if (!userId) return;
     const db = getDb();
     const now = new Date();
     const item: VaultItem = {
       id: uuid(),
-      userId: user.uid,
+      userId: userId,
       type,
       title,
       fields,

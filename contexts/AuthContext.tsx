@@ -37,6 +37,7 @@ import { useStore } from '@/store/useStore';
 
 interface AuthContextType {
   user: FirebaseUser | null;
+  userId: string | null;
   loading: boolean;
   error: string | null;
   signIn: (email: string, password: string) => Promise<void>;
@@ -186,11 +187,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useStore.getState().reset();
   }, []);
 
+  const userId = useMemo(() => {
+    if (user?.uid) return user.uid;
+    const storeUserId = useStore.getState().userId;
+    if (storeUserId) return storeUserId;
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('money_ledger_last_uid');
+    }
+    return null;
+  }, [user?.uid]);
+
   const stableUser = useMemo(() => user, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const value = useMemo(
-    () => ({ user: stableUser, loading, error, signIn, signUp, signInWithGoogle, resetPassword, signOut, clearError }),
-    [stableUser, loading, error, signIn, signUp, signInWithGoogle, resetPassword, signOut, clearError]
+    () => ({ user: stableUser, userId, loading, error, signIn, signUp, signInWithGoogle, resetPassword, signOut, clearError }),
+    [stableUser, userId, loading, error, signIn, signUp, signInWithGoogle, resetPassword, signOut, clearError]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
