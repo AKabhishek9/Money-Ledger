@@ -31,7 +31,7 @@ function generateSW() {
   console.log('Generating Service Worker...');
 
   if (!fs.existsSync(OUT_DIR)) {
-    console.error(`Error: build directory "${OUT_DIR}" does not exist. Run "next build" first.`);
+    console.error('Error: build directory does not exist. Run next build first.');
     process.exit(1);
   }
 
@@ -42,7 +42,6 @@ function generateSW() {
   files.forEach((file) => {
     const relativePath = path.relative(OUT_DIR, file).replace(/\\/g, '/');
 
-    // Skip service worker itself, source maps, and other metadata
     if (
       relativePath === 'sw.js' ||
       relativePath.endsWith('.map') ||
@@ -53,32 +52,27 @@ function generateSW() {
     }
 
     const hash = computeHash(file);
-    // Precache entries should have leading slash
     precacheEntries.push({
-      url: `/${relativePath}`,
+      url: '/' + relativePath,
       revision: hash,
     });
   });
 
   const swContent = `/**
  * Money Ledger Service Worker
- * Generated automatically at build time.
  */
 
 const CACHE_NAME = 'money-ledger-cache-v${timestamp}';
 const PRECACHE_ASSETS = ${JSON.stringify(precacheEntries, null, 2)};
 
-// Install Event: Precache all assets (resilient, individual caching)
+
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Precaching all assets resiliently...');
       const urlsToCache = PRECACHE_ASSETS.map(entry => entry.url);
-      
-      // Map to individual cache.add calls wrapped in a catch block
       const cachePromises = urlsToCache.map(url => {
         return cache.add(url).catch(err => {
-          console.warn('[Service Worker] Skipping failed precache asset:', url, err);
+          console.warn('Skipping precache asset:', url, err);
         });
       });
       return Promise.all(cachePromises);
@@ -86,15 +80,12 @@ self.addEventListener('install', (event) => {
   );
 });
 
-
-// Activate Event: Clean up old caches and claim clients
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
-            console.log('[Service Worker] Removing old cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
@@ -103,16 +94,13 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event: Handle routing and serving from cache
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // 1. Bypass Firestore calls (let Firestore SDK handle its own offline persistence)
   if (url.hostname === 'firestore.googleapis.com') {
     return;
   }
 
-  // 2. Firebase Auth endpoints — network-first with cache fallback (3s timeout)
   if (url.hostname.endsWith('.googleapis.com') && event.request.method === 'GET') {
     event.respondWith((async () => {
       const cache = await caches.open('firebase-auth');
@@ -134,22 +122,18 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 3. Non-GET requests to googleapis — let them pass through
   if (url.hostname.endsWith('.googleapis.com')) {
     return;
   }
 
-  // 4. We only handle HTTP/HTTPS GET requests
   if (!event.request.url.startsWith('http') || event.request.method !== 'GET') {
     return;
   }
 
-  // 4. Navigation requests (HTML pages) - Network First with Cache Fallback
   if (event.request.mode === 'navigate') {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
       
-      // Clean URLs support: resolve /personal to /personal.html
       let cacheKey = url.pathname;
       if (cacheKey === '/') {
         cacheKey = '/index.html';
@@ -157,30 +141,23 @@ self.addEventListener('fetch', (event) => {
         cacheKey = cacheKey + '.html';
       }
 
-      // Try network first
       try {
         const networkResponse = await fetch(event.request);
         if (networkResponse && networkResponse.status === 200) {
-          // Cache the fresh version of the page dynamically
           cache.put(cacheKey, networkResponse.clone());
         }
         return networkResponse;
       } catch (error) {
-        console.log('[Service Worker] Network navigation failed, falling back to cache:', error);
-        
-        // Fallback to cache
         const cachedResponse = await cache.match(cacheKey);
         if (cachedResponse) {
           return cachedResponse;
         }
 
-        // Ultimate fallback to offline.html or index.html
         const offlinePage = await cache.match('/offline.html') || await cache.match('/index.html');
         if (offlinePage) {
           return offlinePage;
         }
         
-        // If everything fails, return a friendly offline response rather than throwing a crash error
         return new Response('Internet connection is offline and this page is not cached.', {
           status: 503,
           statusText: 'Service Unavailable',
@@ -191,26 +168,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 5. Static Assets (images, fonts, scripts, stylesheets, manifest)
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_NAME);
     
-    // Check if it is a match in our precached assets (matches exact path or with query params)
     const cachedResponse = await cache.match(event.request, { ignoreSearch: true });
     if (cachedResponse) {
       return cachedResponse;
     }
 
-    // Dynamic caching for other GET resources requested on the fly (e.g. CDNs)
     try {
       const networkResponse = await fetch(event.request);
       if (networkResponse && networkResponse.status === 200) {
-        // Cache external assets like Google Fonts dynamically
         cache.put(event.request, networkResponse.clone());
       }
       return networkResponse;
     } catch (error) {
-      // Return 503 for missing assets offline
       return new Response('Resource offline', { status: 503, statusText: 'Offline' });
     }
   })());
@@ -218,8 +190,8 @@ self.addEventListener('fetch', (event) => {
 `;
 
   fs.writeFileSync(SW_FILE, swContent);
-  console.log(`Service Worker generated successfully at ${SW_FILE}`);
-  console.log(`Precached ${precacheEntries.length} assets.`);
+  console.log('Service Worker generated successfully at ' + SW_FILE);
+  console.log('Precached ' + precacheEntries.length + ' assets.');
 }
 
 generateSW();
