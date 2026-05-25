@@ -60,13 +60,16 @@ export default function BottomSheet({ title, onClose, children, height = 'auto' 
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
       <div
-        className={`flex flex-col rounded-t-[1.35rem] animate-slide-up shadow-2xl ${heights[height]}`}
+        className={`flex flex-col rounded-t-[1.35rem] animate-slide-up ${heights[height]}`}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         style={{
-          background: 'var(--color-surface)',
-          borderTop: '1px solid color-mix(in oklab, var(--color-border) 80%, transparent)',
+          background: 'var(--color-glass-heavy)',
+          backdropFilter: 'blur(24px) saturate(1.4)',
+          WebkitBackdropFilter: 'blur(24px) saturate(1.4)',
+          borderTop: '1px solid var(--color-glass-border-accent)',
+          boxShadow: 'var(--shadow-glass)',
           transform: deltaY > 0 ? `translateY(${deltaY}px)` : 'translateY(0)',
           transition: currentY === null ? 'transform 0.2s ease-out' : 'none',
         }}
@@ -80,7 +83,7 @@ export default function BottomSheet({ title, onClose, children, height = 'auto' 
         {title && (
           <div
             className="flex shrink-0 items-center justify-between px-4 py-2.5"
-            style={{ borderBottom: '1px solid var(--color-border)' }}
+            style={{ borderBottom: '1px solid var(--color-glass-border)' }}
           >
             <h2 className="text-base font-semibold tracking-tight" style={{ color: 'var(--color-text)' }}>
               {title}
@@ -88,9 +91,8 @@ export default function BottomSheet({ title, onClose, children, height = 'auto' 
             <button
               type="button"
               onClick={onClose}
-              className="flex h-10 w-10 items-center justify-center rounded-xl transition-opacity duration-150 active:opacity-80"
+              className="glass-btn-secondary flex h-10 w-10 items-center justify-center rounded-xl transition-opacity duration-150 active:opacity-80"
               style={{
-                background: 'var(--color-surface-2)',
                 color: 'var(--color-text-muted)',
               }}
               aria-label="Close"

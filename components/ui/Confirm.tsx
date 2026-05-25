@@ -26,9 +26,8 @@ export default function Confirm({
       onClick={(e) => e.target === e.currentTarget && onCancel()}
     >
       <div
-        className="w-full max-w-sm rounded-2xl p-5 animate-scale-in"
-        style={{ background: 'var(--color-surface)' }}
-      >
+        className="w-full max-w-sm rounded-2xl p-5 animate-scale-in glass-heavy">
+
         <h3 className="font-semibold text-base mb-2" style={{ color: 'var(--color-text)' }}>
           {title}
         </h3>
@@ -38,9 +37,8 @@ export default function Confirm({
         <div className="flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 py-2.5 rounded-xl text-sm font-medium"
+            className="glass-btn-secondary flex-1 py-2.5 rounded-xl text-sm font-medium"
             style={{
-              background: 'var(--color-surface-2)',
               color: 'var(--color-text-muted)',
             }}
           >
@@ -48,9 +46,9 @@ export default function Confirm({
           </button>
           <button
             onClick={onConfirm}
-            className="flex-1 py-2.5 rounded-xl text-sm font-semibold"
+            className="glass-btn-primary flex-1 py-2.5 rounded-xl text-sm font-semibold"
             style={{
-              background: danger ? 'var(--color-expense)' : 'var(--color-accent)',
+              background: danger ? 'var(--color-expense)' : undefined,
               color: 'var(--color-on-accent)',
             }}
           >

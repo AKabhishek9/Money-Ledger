@@ -151,9 +151,8 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
   return (
     <div
       ref={containerRef}
-      className="z-20 px-3 pb-3 pt-2"
+      className="glass-heavy z-20 px-3 pb-3 pt-2"
       style={{
-        background: 'var(--color-nav)',
         // When keyboard is open, add safe-area padding at the bottom
         paddingBottom: keyboardOpen ? 8 : undefined,
       }}
@@ -200,11 +199,9 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
           value={entryDate}
           onChange={(e) => setEntryDate(e.target.value)}
           disabled={disabled || loading}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs outline-none"
+          className="glass-input flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs outline-none"
           style={{
-            background: 'var(--color-surface-2)',
             color: 'var(--color-text-dim)',
-            border: '1px solid var(--color-border)',
             cursor: 'pointer'
           }}
         />
@@ -288,15 +285,13 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
       {/* Input row — amount | note split */}
       <div className="flex min-w-0 items-end gap-2">
         <div
-          className="flex min-h-[52px] min-w-0 flex-1 items-stretch rounded-xl transition-[border-color,box-shadow] duration-200"
+          className="glass-input flex min-h-[52px] min-w-0 flex-1 items-stretch rounded-xl transition-[border-color,box-shadow] duration-200"
           style={{
-            background: 'var(--color-surface-2)',
-            border: `1px solid ${parsed?.isValid
+            borderColor: parsed?.isValid
               ? isIncome
-                ? 'color-mix(in oklab, var(--color-income) 55%, var(--color-border))'
-                : 'color-mix(in oklab, var(--color-expense) 55%, var(--color-border))'
-              : 'var(--color-border)'
-              }`,
+                ? 'color-mix(in oklab, var(--color-income) 55%, var(--color-glass-border))'
+                : 'color-mix(in oklab, var(--color-expense) 55%, var(--color-glass-border))'
+              : undefined,
             boxShadow: parsed?.isValid ? '0 0 0 1px color-mix(in oklab, var(--color-accent) 12%, transparent)' : undefined,
           }}
         >
@@ -361,7 +356,7 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
           className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-xl transition-[transform,opacity] duration-150 active:scale-[0.96] disabled:opacity-60"
           style={{
             background:
-              parsed?.isValid && !loading ? 'var(--color-accent)' : 'var(--color-surface-2)',
+              parsed?.isValid && !loading ? 'var(--color-accent)' : 'rgba(255,255,255,0.06)',
             color: parsed?.isValid && !loading ? 'var(--color-on-accent)' : 'var(--color-text-dim)',
           }}
           aria-label="Save entry"

@@ -62,8 +62,7 @@ export default function MoreDrawer({ onClose }: MoreDrawerProps) {
                 type="button"
                 key={tab.id}
                 onClick={() => handleNavigate(`/tab?t=${tab.id}`)}
-                className="surface-card flex items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-[transform,opacity] duration-150 active:scale-[0.99] active:opacity-90"
-                style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}
+                className="glass-card flex items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-[transform,opacity] duration-150 active:scale-[0.99] active:opacity-90"
               >
                 <span className="text-xl leading-none">{tab.icon}</span>
                 <span className="truncate text-sm font-semibold tracking-tight" style={{ color: 'var(--color-text)' }}>
@@ -77,8 +76,7 @@ export default function MoreDrawer({ onClose }: MoreDrawerProps) {
         {/* Add new tab */}
         {showAddTab ? (
           <div
-            className="rounded-2xl p-4 flex flex-col gap-3 animate-scale-in"
-            style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)' }}
+            className="glass-panel rounded-2xl p-4 flex flex-col gap-3 animate-scale-in"
           >
             <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
               New Tab
@@ -106,10 +104,8 @@ export default function MoreDrawer({ onClose }: MoreDrawerProps) {
                 value={newTabName}
                 onChange={(e) => setNewTabName(e.target.value)}
                 placeholder="Tab name (e.g. Business)"
-                className="flex-1 px-3 py-2 rounded-xl text-sm outline-none"
+                className="glass-input flex-1 px-3 py-2 rounded-xl text-sm outline-none"
                 style={{
-                  background: 'var(--color-surface)',
-                  border: '1px solid var(--color-border)',
                   color: 'var(--color-text)',
                 }}
                 onKeyDown={(e) => e.key === 'Enter' && handleAddTab()}
@@ -119,17 +115,17 @@ export default function MoreDrawer({ onClose }: MoreDrawerProps) {
             <div className="flex gap-2">
               <button
                 onClick={() => setShowAddTab(false)}
-                className="flex-1 py-2 rounded-xl text-sm"
-                style={{ background: 'var(--color-surface)', color: 'var(--color-text-muted)' }}
+                className="glass-btn-secondary flex-1 py-2 rounded-xl text-sm"
+                style={{ color: 'var(--color-text-muted)' }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddTab}
                 disabled={adding || !newTabName.trim()}
-                className="flex-1 py-2 rounded-xl text-sm font-semibold"
+                className="glass-btn-primary flex-1 py-2 rounded-xl text-sm font-semibold"
                 style={{
-                  background: newTabName.trim() ? 'var(--color-accent)' : 'var(--color-text-dim)',
+                  opacity: (adding || !newTabName.trim()) ? 0.5 : 1,
                   color: 'var(--color-on-accent)',
                 }}
               >
@@ -141,12 +137,7 @@ export default function MoreDrawer({ onClose }: MoreDrawerProps) {
           <button
             type="button"
             onClick={() => setShowAddTab(true)}
-            className="flex items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-opacity duration-150 active:opacity-90"
-            style={{
-              background: 'var(--color-surface-2)',
-              border: '1px dashed var(--color-border-2)',
-              color: 'var(--color-accent)',
-            }}
+            className="glass-card flex items-center gap-3 rounded-2xl px-4 py-3.5 text-left active:opacity-90"
           >
             <Plus size={18} strokeWidth={2} />
             <span className="text-sm font-semibold">New custom tab</span>

@@ -29,10 +29,9 @@ export default function Header({
 
   return (
     <header
-      className="sticky top-0 z-30 flex items-center gap-2 px-4 py-2.5 safe-top backdrop-blur-md supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--color-nav)_88%,transparent)]"
+      className="sticky top-0 z-30 glass-heavy flex items-center gap-2 px-4 py-2.5 safe-top"
       style={{
-        background: 'var(--color-nav)',
-        borderBottom: '1px solid var(--color-border)',
+        borderBottom: '1px solid var(--color-glass-border)',
         minHeight: 52,
       }}
     >

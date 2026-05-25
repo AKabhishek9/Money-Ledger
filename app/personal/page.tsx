@@ -310,12 +310,7 @@ function PersonalContent() {
       {/* NET BALANCE card */}
       <div className="px-4 pt-3 pb-2 shrink-0">
         <div
-          className="rounded-3xl px-5 py-4 flex items-center justify-between"
-          style={{
-            background: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            boxShadow: 'var(--shadow-card-sm)',
-          }}
+          className="glass-panel rounded-3xl px-5 py-4 flex items-center justify-between"
         >
           <div>
             <p className="text-balance-label mb-1">Total Balance</p>
@@ -380,10 +375,8 @@ function PersonalContent() {
               value={newWindowTitle}
               onChange={(e) => setNewWindowTitle(e.target.value)}
               placeholder="Page title (e.g. Business Expenses)"
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              className="glass-input w-full px-4 py-3 rounded-xl text-sm outline-none"
               style={{
-                background: 'var(--color-surface-2)',
-                border: '1px solid var(--color-border)',
                 color: 'var(--color-text)',
               }}
               onKeyDown={(e) => e.key === 'Enter' && handleAddWindow()}
@@ -392,9 +385,9 @@ function PersonalContent() {
             <button
               onClick={handleAddWindow}
               disabled={!newWindowTitle.trim()}
-              className="w-full py-3 rounded-xl text-sm font-semibold"
+              className="glass-btn-primary w-full py-3 rounded-xl text-sm font-semibold"
               style={{
-                background: newWindowTitle.trim() ? 'var(--color-accent)' : 'var(--color-text-dim)',
+                opacity: newWindowTitle.trim() ? 1 : 0.5,
                 color: 'var(--color-on-accent)',
               }}
             >
@@ -413,10 +406,8 @@ function PersonalContent() {
               value={renameTitle}
               onChange={(e) => setRenameTitle(e.target.value)}
               placeholder="Page title"
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              className="glass-input w-full px-4 py-3 rounded-xl text-sm outline-none"
               style={{
-                background: 'var(--color-surface-2)',
-                border: '1px solid var(--color-border)',
                 color: 'var(--color-text)',
               }}
               onKeyDown={(e) => e.key === 'Enter' && handleRename()}
@@ -425,9 +416,9 @@ function PersonalContent() {
             <button
               onClick={handleRename}
               disabled={!renameTitle.trim() || renameTitle.trim() === renameTarget.title}
-              className="w-full py-3 rounded-xl text-sm font-semibold"
+              className="glass-btn-primary w-full py-3 rounded-xl text-sm font-semibold"
               style={{
-                background: renameTitle.trim() && renameTitle.trim() !== renameTarget.title ? 'var(--color-accent)' : 'var(--color-text-dim)',
+                opacity: (renameTitle.trim() && renameTitle.trim() !== renameTarget.title) ? 1 : 0.5,
                 color: 'var(--color-on-accent)',
               }}
             >

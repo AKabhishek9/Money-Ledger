@@ -43,12 +43,7 @@ export default function PersonCard({
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full flex-col rounded-[1.25rem] p-4 text-left transition-all duration-200 active:opacity-90"
-        style={{
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          boxShadow: 'var(--shadow-card-sm)',
-        }}
+        className="glass-card flex w-full flex-col rounded-[1.25rem] p-4 text-left active:opacity-90"
       >
         {/* Header: Avatar + Name */}
         <div className="flex items-center gap-3 w-full mb-3 pr-6">
@@ -121,11 +116,8 @@ export default function PersonCard({
 
         {menuOpen && (
           <div
-            className="absolute right-0 top-10 z-30 animate-fade-in overflow-hidden rounded-xl py-1"
+            className="absolute right-0 top-10 z-30 animate-fade-in overflow-hidden rounded-xl py-1 glass-menu"
             style={{
-              background: 'var(--color-surface-2)',
-              border: '1px solid var(--color-border-2)',
-              boxShadow: 'var(--shadow-card)',
               minWidth: 160,
             }}
           >

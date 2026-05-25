@@ -47,12 +47,7 @@ export default function WindowCard({
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full flex-col rounded-[1.25rem] p-4 text-left transition-all duration-200 active:opacity-90"
-        style={{
-          background: 'var(--color-surface)',
-          border: '1px solid var(--color-border)',
-          boxShadow: 'var(--shadow-card-sm)',
-        }}
+        className="glass-card flex w-full flex-col rounded-[1.25rem] p-4 text-left active:opacity-90"
       >
         {/* Title */}
         <div className="flex items-start justify-between w-full mb-3 pr-6">
@@ -110,11 +105,8 @@ export default function WindowCard({
 
         {menuOpen && (
           <div
-            className="absolute right-0 top-10 z-30 animate-fade-in overflow-hidden rounded-xl py-1"
+            className="absolute right-0 top-10 z-30 animate-fade-in overflow-hidden rounded-xl py-1 glass-menu"
             style={{
-              background: 'var(--color-surface-2)',
-              border: '1px solid var(--color-border-2)',
-              boxShadow: 'var(--shadow-card)',
               minWidth: 160,
             }}
           >

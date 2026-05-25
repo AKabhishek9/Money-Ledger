@@ -24,12 +24,7 @@ export function VaultCard({ item, onDelete, onEdit }: VaultCardProps) {
 
   return (
     <div
-      className="mx-4 mb-3 overflow-hidden rounded-2xl transition-all duration-200"
-      style={{
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-        boxShadow: expanded ? 'var(--shadow-card)' : 'var(--shadow-card-sm)',
-      }}
+      className="glass-card mx-4 mb-3 overflow-hidden rounded-2xl"
     >
       {/* Header row */}
       <button
@@ -39,7 +34,7 @@ export function VaultCard({ item, onDelete, onEdit }: VaultCardProps) {
       >
         <div
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-xl"
-          style={{ background: 'var(--color-surface-2)' }}
+          style={{ background: 'rgba(255,255,255,0.06)' }}
         >
           {tmpl?.icon || '🔒'}
         </div>
@@ -100,8 +95,8 @@ export function VaultCard({ item, onDelete, onEdit }: VaultCardProps) {
             <button
               type="button"
               onClick={onEdit}
-              className="flex-1 rounded-xl py-2.5 text-xs font-semibold transition-opacity active:opacity-80 flex items-center justify-center gap-1.5"
-              style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}
+              className="glass-btn-secondary flex-1 rounded-xl py-2.5 text-xs font-semibold transition-opacity active:opacity-80 flex items-center justify-center gap-1.5"
+              style={{ color: 'var(--color-text-muted)' }}
             >
               <Pencil size={13} />
               Edit Item

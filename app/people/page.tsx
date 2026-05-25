@@ -213,12 +213,7 @@ function PeopleContent() {
       {persons.length > 0 && (
         <div className="px-4 pt-3 pb-2 shrink-0">
           <div
-            className="rounded-3xl px-5 py-4 flex items-center justify-between"
-            style={{
-              background: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              boxShadow: 'var(--shadow-card-sm)',
-            }}
+            className="glass-panel rounded-3xl px-5 py-4 flex items-center justify-between"
           >
             <div>
               <p className="text-balance-label mb-1">Combined Net</p>
@@ -283,10 +278,8 @@ function PeopleContent() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Name (e.g. Rahul)"
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              className="glass-input w-full px-4 py-3 rounded-xl text-sm outline-none"
               style={{
-                background: 'var(--color-surface-2)',
-                border: '1px solid var(--color-border)',
                 color: 'var(--color-text)',
               }}
               autoFocus
@@ -297,19 +290,17 @@ function PeopleContent() {
               value={newNote}
               onChange={(e) => setNewNote(e.target.value)}
               placeholder="Note (optional)"
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              className="glass-input w-full px-4 py-3 rounded-xl text-sm outline-none"
               style={{
-                background: 'var(--color-surface-2)',
-                border: '1px solid var(--color-border)',
                 color: 'var(--color-text)',
               }}
             />
             <button
               onClick={handleAddPerson}
               disabled={!newName.trim()}
-              className="w-full py-3 rounded-xl text-sm font-semibold"
+              className="glass-btn-primary w-full py-3 rounded-xl text-sm font-semibold"
               style={{
-                background: newName.trim() ? 'var(--color-accent)' : 'var(--color-text-dim)',
+                opacity: newName.trim() ? 1 : 0.5,
                 color: 'var(--color-on-accent)',
               }}
             >
@@ -328,10 +319,8 @@ function PeopleContent() {
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               placeholder="Name"
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              className="glass-input w-full px-4 py-3 rounded-xl text-sm outline-none"
               style={{
-                background: 'var(--color-surface-2)',
-                border: '1px solid var(--color-border)',
                 color: 'var(--color-text)',
               }}
               autoFocus
@@ -341,27 +330,25 @@ function PeopleContent() {
               value={newNote}
               onChange={(e) => setNewNote(e.target.value)}
               placeholder="Note (optional)"
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
+              className="glass-input w-full px-4 py-3 rounded-xl text-sm outline-none"
               style={{
-                background: 'var(--color-surface-2)',
-                border: '1px solid var(--color-border)',
                 color: 'var(--color-text)',
               }}
             />
             <div className="flex gap-3">
               <button
                 onClick={() => setShowEditSheet(null)}
-                className="flex-1 py-3 rounded-xl text-sm"
-                style={{ background: 'var(--color-surface-2)', color: 'var(--color-text-muted)' }}
+                className="glass-btn-secondary flex-1 py-3 rounded-xl text-sm"
+                style={{ color: 'var(--color-text-muted)' }}
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleEditSave(showEditSheet)}
                 disabled={!newName.trim()}
-                className="flex-1 py-3 rounded-xl text-sm font-semibold"
+                className="glass-btn-primary flex-1 py-3 rounded-xl text-sm font-semibold"
                 style={{
-                  background: newName.trim() ? 'var(--color-accent)' : 'var(--color-text-dim)',
+                  opacity: newName.trim() ? 1 : 0.5,
                   color: 'var(--color-on-accent)',
                 }}
               >

@@ -83,43 +83,50 @@ export default function BottomNav({ onMoreClick }: BottomNavProps) {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-40 flex items-end justify-around safe-bottom backdrop-blur-md supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--color-nav)_92%,transparent)]"
+      className="fixed bottom-0 left-0 right-0 z-40 flex justify-center"
       style={{
-        background: 'var(--color-nav)',
-        borderTop: '1px solid var(--color-border)',
-        paddingBottom: 'max(env(safe-area-inset-bottom), 10px)',
-        paddingTop: '6px',
+        paddingBottom: 'max(env(safe-area-inset-bottom), 12px)',
+        paddingLeft: 12,
+        paddingRight: 12,
       }}
     >
-      {NAV_ITEMS.map((item) => {
-        const active = isActive(item);
-        return (
-          <button
-            type="button"
-            key={item.label}
-            onClick={() => handleClick(item)}
-            className="relative flex min-h-[52px] min-w-[56px] flex-col items-center justify-end gap-0.5 rounded-xl px-3 pb-1 pt-1 transition-[color,transform] duration-200"
-            style={{
-              color: active ? 'var(--color-accent)' : 'var(--color-text-muted)',
-            }}
-          >
-            <div
-              className="flex h-8 items-center justify-center transition-transform duration-200 ease-out"
-              style={{ transform: active ? 'translateY(-1px)' : 'translateY(0)' }}
+      <div
+        className="glass-heavy flex w-full max-w-md items-end justify-around rounded-2xl"
+        style={{
+          paddingBottom: 8,
+          paddingTop: 6,
+        }}
+      >
+        {NAV_ITEMS.map((item) => {
+          const active = isActive(item);
+          return (
+            <button
+              type="button"
+              key={item.label}
+              onClick={() => handleClick(item)}
+              className="relative flex min-h-[50px] min-w-[52px] flex-col items-center justify-end gap-0.5 rounded-xl px-3 pb-1 pt-1 transition-[color,transform] duration-200"
+              style={{
+                color: active ? 'var(--color-accent)' : 'var(--color-text-muted)',
+              }}
             >
-              {item.icon}
-            </div>
-            <span className="text-[0.625rem] font-semibold uppercase tracking-wide">{item.label}</span>
-            {active && (
-              <span
-                className="absolute left-1/2 top-1 h-0.5 w-7 -translate-x-1/2 rounded-full"
-                style={{ background: 'var(--color-accent)', opacity: 0.95 }}
-                aria-hidden
-              />
-            )}
-          </button>
-        );
-      })}
+              <div
+                className="flex h-8 items-center justify-center transition-transform duration-200 ease-out"
+                style={{ transform: active ? 'translateY(-1px)' : 'translateY(0)' }}
+              >
+                {item.icon}
+              </div>
+              <span className="text-[0.625rem] font-semibold uppercase tracking-wide">{item.label}</span>
+              {active && (
+                <span
+                  className="absolute left-1/2 top-1 h-0.5 w-7 -translate-x-1/2 rounded-full"
+                  style={{ background: 'var(--color-accent)', opacity: 0.95 }}
+                  aria-hidden
+                />
+              )}
+            </button>
+          );
+        })}
+      </div>
     </nav>
   );
 }

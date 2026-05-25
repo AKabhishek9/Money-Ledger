@@ -92,11 +92,17 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center p-6"
+      className="min-h-screen flex flex-col items-center justify-center p-6 relative"
       style={{ background: 'var(--color-bg)' }}
     >
+      {/* Mesh gradient background */}
+      <div className="mesh-bg" aria-hidden="true">
+        <div className="mesh-orb mesh-orb-1" />
+        <div className="mesh-orb mesh-orb-2" />
+        <div className="mesh-orb mesh-orb-3" />
+      </div>
       {/* Logo */}
-      <div className="mb-8 text-center">
+      <div className="mb-8 text-center relative z-10">
         <div className="text-5xl mb-3">💰</div>
         <h1 className="text-2xl font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>
           Money Ledger
@@ -108,13 +114,12 @@ export default function LoginPage() {
 
       {/* Card */}
       <div
-        className="w-full max-w-sm rounded-2xl p-6"
-        style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+        className="glass-heavy w-full max-w-sm rounded-2xl p-6 relative z-10"
       >
         {/* Mode tabs */}
         <div
           className="flex rounded-xl p-1 mb-6"
-          style={{ background: 'var(--color-surface-2)' }}
+          style={{ background: 'rgba(255, 255, 255, 0.05)' }}
         >
           {(['login', 'signup'] as const).map((m) => (
             <button
@@ -145,10 +150,8 @@ export default function LoginPage() {
                 placeholder="Your name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none"
+                className="glass-input w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none"
                 style={{
-                  background: 'var(--color-surface-2)',
-                  border: '1px solid var(--color-border)',
                   color: 'var(--color-text)',
                 }}
               />
@@ -166,10 +169,8 @@ export default function LoginPage() {
               placeholder="Email address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none"
+              className="glass-input w-full pl-9 pr-4 py-3 rounded-xl text-sm outline-none"
               style={{
-                background: 'var(--color-surface-2)',
-                border: '1px solid var(--color-border)',
                 color: 'var(--color-text)',
               }}
             />
@@ -186,10 +187,8 @@ export default function LoginPage() {
               placeholder="Password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full pl-9 pr-10 py-3 rounded-xl text-sm outline-none"
+              className="glass-input w-full pl-9 pr-10 py-3 rounded-xl text-sm outline-none"
               style={{
-                background: 'var(--color-surface-2)',
-                border: '1px solid var(--color-border)',
                 color: 'var(--color-text)',
               }}
             />
@@ -238,9 +237,8 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-opacity"
+            className="glass-btn-primary flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm"
             style={{
-              background: submitting ? 'var(--color-text-dim)' : 'var(--color-accent)',
               color: 'var(--color-on-accent)',
               opacity: submitting ? 0.7 : 1,
             }}
@@ -268,10 +266,8 @@ export default function LoginPage() {
           type="button"
           onClick={handleGoogle}
           disabled={submitting}
-          className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium transition-opacity"
+          className="glass-btn-secondary w-full flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-medium"
           style={{
-            background: 'var(--color-surface-2)',
-            border: '1px solid var(--color-border)',
             color: 'var(--color-text)',
             opacity: submitting ? 0.6 : 1,
           }}
@@ -286,7 +282,7 @@ export default function LoginPage() {
         </button>
       </div>
 
-      <p className="mt-6 text-xs text-center" style={{ color: 'var(--color-text-dim)' }}>
+      <p className="mt-6 text-xs text-center relative z-10" style={{ color: 'var(--color-text-dim)' }}>
         Works offline · Syncs to cloud · Your data stays yours
       </p>
     </div>
