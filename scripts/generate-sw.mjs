@@ -144,7 +144,9 @@ self.addEventListener('fetch', (event) => {
       try {
         const networkResponse = await fetch(event.request);
         if (networkResponse && networkResponse.status === 200) {
-          cache.put(cacheKey, networkResponse.clone());
+          cache.put(cacheKey, networkResponse.clone()).catch(err => {
+            console.warn('Failed to cache navigation route:', err);
+          });
         }
         return networkResponse;
       } catch (error) {
@@ -179,7 +181,9 @@ self.addEventListener('fetch', (event) => {
     try {
       const networkResponse = await fetch(event.request);
       if (networkResponse && networkResponse.status === 200) {
-        cache.put(event.request, networkResponse.clone());
+        cache.put(event.request, networkResponse.clone()).catch(err => {
+          console.warn('Failed to dynamically cache asset:', err);
+        });
       }
       return networkResponse;
     } catch (error) {

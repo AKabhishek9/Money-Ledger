@@ -28,10 +28,11 @@ export default function RegisterSW() {
         window.addEventListener('load', handleRegister);
       }
 
-      // Reload page when the new service worker takes control
+      // Reload page when the new service worker takes control, but only if there was an active controller before (representing an update)
       let refreshing = false;
+      const hasController = !!navigator.serviceWorker.controller;
       const handleControllerChange = () => {
-        if (!refreshing) {
+        if (hasController && !refreshing) {
           refreshing = true;
           window.location.reload();
         }
