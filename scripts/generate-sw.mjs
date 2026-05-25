@@ -68,16 +68,24 @@ function generateSW() {
 const CACHE_NAME = 'money-ledger-cache-v${timestamp}';
 const PRECACHE_ASSETS = ${JSON.stringify(precacheEntries, null, 2)};
 
-// Install Event: Precache all assets
+// Install Event: Precache all assets (resilient, individual caching)
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[Service Worker] Precaching all assets...');
+      console.log('[Service Worker] Precaching all assets resiliently...');
       const urlsToCache = PRECACHE_ASSETS.map(entry => entry.url);
-      return cache.addAll(urlsToCache);
+      
+      // Map to individual cache.add calls wrapped in a catch block
+      const cachePromises = urlsToCache.map(url => {
+        return cache.add(url).catch(err => {
+          console.warn('[Service Worker] Skipping failed precache asset:', url, err);
+        });
+      });
+      return Promise.all(cachePromises);
     }).then(() => self.skipWaiting())
   );
 });
+
 
 // Activate Event: Clean up old caches and claim clients
 self.addEventListener('activate', (event) => {
@@ -136,7 +144,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 4. Navigation requests (HTML pages)
+  // 4. Navigation requests (HTML pages) - Network First with Cache Fallback
   if (event.request.mode === 'navigate') {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
@@ -149,23 +157,35 @@ self.addEventListener('fetch', (event) => {
         cacheKey = cacheKey + '.html';
       }
 
-      // Check cache first
-      const cachedResponse = await cache.match(cacheKey);
-      if (cachedResponse) {
-        return cachedResponse;
-      }
-
-      // If not in cache, try network, then fallback to offline/index page
+      // Try network first
       try {
         const networkResponse = await fetch(event.request);
+        if (networkResponse && networkResponse.status === 200) {
+          // Cache the fresh version of the page dynamically
+          cache.put(cacheKey, networkResponse.clone());
+        }
         return networkResponse;
       } catch (error) {
-        console.warn('[Service Worker] Navigation failed, serving offline page:', error);
+        console.log('[Service Worker] Network navigation failed, falling back to cache:', error);
+        
+        // Fallback to cache
+        const cachedResponse = await cache.match(cacheKey);
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+
+        // Ultimate fallback to offline.html or index.html
         const offlinePage = await cache.match('/offline.html') || await cache.match('/index.html');
         if (offlinePage) {
           return offlinePage;
         }
-        throw error;
+        
+        // If everything fails, return a friendly offline response rather than throwing a crash error
+        return new Response('Internet connection is offline and this page is not cached.', {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: new Headers({ 'Content-Type': 'text/plain' })
+        });
       }
     })());
     return;
