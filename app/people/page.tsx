@@ -17,6 +17,14 @@ import { formatAmount, calcTotal } from '@/lib/parser';
 import { useStore } from '@/store/useStore';
 import type { Person, PersonEntry } from '@/lib/types';
 
+/**
+ * Shallow-navigate within /people without triggering a full Suspense re-render.
+ */
+function shallowNavigate(path: string) {
+  window.history.pushState(null, '', path);
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
 export default function PeoplePage() {
   return (
     <AuthGuard>
@@ -155,7 +163,7 @@ function PeopleContent() {
   const handleDeletePerson = async (p: Person) => {
     await deletePersonStore(p.id);
     setDeleteTarget(null);
-    if (personId === p.id) router.push('/people');
+    if (personId === p.id) shallowNavigate('/people');
     load();
   };
 
@@ -175,7 +183,7 @@ function PeopleContent() {
           title={selectedPerson.name}
           subtitle="Personal Ledger"
           showBack
-          onBack={() => router.push('/people')}
+          onBack={() => shallowNavigate('/people')}
         />
         <div className="flex-1 overflow-hidden flex flex-col">
           <PersonLedger person={selectedPerson} userId={userId!} />
@@ -252,7 +260,7 @@ function PeopleContent() {
                   balance={balances[p.id]?.balance ?? 0}
                   entryCount={balances[p.id]?.count ?? 0}
                   recentEntries={balances[p.id]?.recentEntries ?? []}
-                  onClick={() => router.push(`/people?p=${p.id}`)}
+                  onClick={() => shallowNavigate(`/people?p=${p.id}`)}
                   onDelete={() => setDeleteTarget(p)}
                   onEdit={() => {
                     setNewName(p.name);

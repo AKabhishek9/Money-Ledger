@@ -20,6 +20,16 @@ import type { Tab, MoneyWindow, Entry } from '@/lib/types';
 import { formatAmount } from '@/lib/parser';
 import { Archive } from 'lucide-react';
 
+/**
+ * Shallow-navigate within /personal without triggering a full Suspense re-render.
+ * Uses window.history so React keeps the current component tree intact.
+ */
+function shallowNavigate(path: string) {
+  window.history.pushState(null, '', path);
+  // Dispatch a popstate so useSearchParams picks up the new URL
+  window.dispatchEvent(new PopStateEvent('popstate'));
+}
+
 export default function PersonalPage() {
   return (
     <AuthGuard>
@@ -235,7 +245,7 @@ function PersonalContent() {
         <Header
           title={selectedWindow.title}
           showBack
-          onBack={() => router.push('/personal')}
+          onBack={() => shallowNavigate('/personal')}
           rightAction={
             <button
               onClick={() => setArchiveTarget(selectedWindow)}
@@ -250,7 +260,7 @@ function PersonalContent() {
           <WindowView
             window={selectedWindow}
             userId={userId!}
-            onBack={() => router.push('/personal')}
+            onBack={() => shallowNavigate('/personal')}
             persons={persons}
           />
         </div>
@@ -262,7 +272,7 @@ function PersonalContent() {
             onConfirm={() => {
               updateWindowStore(archiveTarget.id, { archived: true });
               setArchiveTarget(null);
-              router.push('/personal');
+              shallowNavigate('/personal');
             }}
             onCancel={() => setArchiveTarget(null)}
           />
@@ -346,7 +356,7 @@ function PersonalContent() {
                   total={windowStats[w.id]?.total ?? 0}
                   entryCount={windowStats[w.id]?.count ?? 0}
                   recentEntries={windowStats[w.id]?.recentEntries ?? []}
-                  onClick={() => router.push(`/personal?w=${w.id}`)}
+                  onClick={() => shallowNavigate(`/personal?w=${w.id}`)}
                   onPin={() => handlePin(w)}
                   onArchive={() => handleArchive(w)}
                   onDelete={() => setDeleteTarget(w)}
