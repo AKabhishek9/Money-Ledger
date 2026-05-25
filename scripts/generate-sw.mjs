@@ -76,7 +76,7 @@ self.addEventListener('install', (event) => {
         });
       });
       return Promise.all(cachePromises);
-    }).then(() => self.skipWaiting())
+    })
   );
 });
 
@@ -96,6 +96,10 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+
+  if (url.pathname.startsWith('/_next/')) {
+    return;
+  }
 
   if (url.hostname === 'firestore.googleapis.com') {
     return;
@@ -166,7 +170,13 @@ self.addEventListener('fetch', (event) => {
           headers: new Headers({ 'Content-Type': 'text/plain' })
         });
       }
-    })());
+    })().catch(async () => {
+      try {
+        return await fetch(event.request);
+      } catch (e) {
+        return new Response('Offline', { status: 503, statusText: 'Offline' });
+      }
+    }));
     return;
   }
 
@@ -189,7 +199,7 @@ self.addEventListener('fetch', (event) => {
     } catch (error) {
       return new Response('Resource offline', { status: 503, statusText: 'Offline' });
     }
-  })());
+  })().catch(() => new Response('Offline', { status: 503 })));
 });
 `;
 
