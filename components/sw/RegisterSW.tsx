@@ -14,7 +14,7 @@ export default function RegisterSW() {
           .register('/sw.js')
           .then((registration) => {
             console.log('Service Worker registered with scope:', registration.scope);
-            // Proactively check for updates
+            // Proactively check for updates in the background
             registration.update();
           })
           .catch((error) => {
@@ -28,21 +28,8 @@ export default function RegisterSW() {
         window.addEventListener('load', handleRegister);
       }
 
-      // Reload page when the new service worker takes control, but only if there was an active controller before (representing an update)
-      let refreshing = false;
-      const hasController = !!navigator.serviceWorker.controller;
-      const handleControllerChange = () => {
-        if (hasController && !refreshing) {
-          refreshing = true;
-          window.location.reload();
-        }
-      };
-
-      navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
-
       return () => {
         window.removeEventListener('load', handleRegister);
-        navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
       };
     }
   }, []);
