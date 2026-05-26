@@ -1,8 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePathname, useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { BookOpen, Users, Shield, Search, MoreHorizontal } from 'lucide-react';
 
 interface NavItem {
@@ -10,6 +9,7 @@ interface NavItem {
   label: string;
   href: string;
   match: string[];
+  tabIndex?: number; // index in the tab container (0-3 for main tabs)
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -18,24 +18,28 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Personal',
     href: '/personal',
     match: ['/personal'],
+    tabIndex: 0,
   },
   {
     icon: <Users size={22} />,
     label: 'People',
     href: '/people',
     match: ['/people'],
+    tabIndex: 1,
   },
   {
     icon: <Shield size={22} />,
     label: 'Vault',
     href: '/vault',
     match: ['/vault'],
+    tabIndex: 2,
   },
   {
     icon: <Search size={22} />,
     label: 'Search',
     href: '/search',
     match: ['/search'],
+    tabIndex: 3,
   },
   {
     icon: <MoreHorizontal size={22} />,
@@ -47,16 +51,15 @@ const NAV_ITEMS: NavItem[] = [
 
 interface BottomNavProps {
   onMoreClick?: () => void;
+  /** Currently active tab index (0-3). When set, the nav uses client-side switching. */
+  activeTab?: number;
+  /** Callback to switch tabs by index. */
+  onTabChange?: (index: number) => void;
 }
 
-export default function BottomNav({ onMoreClick }: BottomNavProps) {
+export default function BottomNav({ onMoreClick, activeTab, onTabChange }: BottomNavProps) {
   const pathname = usePathname();
-  const router = useRouter();
   const [keyboardOpen, setKeyboardOpen] = useState(false);
-
-  useEffect(() => {
-    NAV_ITEMS.filter((item) => item.label !== 'More').forEach((item) => router.prefetch(item.href));
-  }, [router]);
 
   // Listen for keyboard-toggle custom event from EntryInput
   useEffect(() => {
@@ -68,14 +71,24 @@ export default function BottomNav({ onMoreClick }: BottomNavProps) {
     return () => window.removeEventListener('keyboard-toggle', handler);
   }, []);
 
-  const isActive = (item: NavItem) =>
-    item.match.some((m) => pathname === m || pathname.startsWith(m + '?'));
+  const isActive = (item: NavItem) => {
+    // In tab mode, use the activeTab index
+    if (activeTab !== undefined && item.tabIndex !== undefined) {
+      return item.tabIndex === activeTab;
+    }
+    // Fallback to pathname matching (for sub-pages like settings)
+    return item.match.some((m) => pathname === m || pathname.startsWith(m + '?'));
+  };
 
   const handleClick = (item: NavItem) => {
     if (item.label === 'More' && onMoreClick) {
       onMoreClick();
-    } else {
-      router.push(item.href);
+      return;
+    }
+    // In tab mode, switch via callback (no navigation)
+    if (onTabChange && item.tabIndex !== undefined) {
+      onTabChange(item.tabIndex);
+      return;
     }
   };
 
@@ -122,30 +135,16 @@ export default function BottomNav({ onMoreClick }: BottomNavProps) {
           const className = "relative flex min-h-[50px] min-w-[52px] flex-col items-center justify-end gap-0.5 rounded-xl px-3 pb-1 pt-1 transition-[color,transform] duration-200";
           const style = { color: active ? 'var(--color-accent)' : 'var(--color-text-muted)' };
 
-          if (item.label === 'More') {
-            return (
-              <button
-                type="button"
-                key={item.label}
-                onClick={() => handleClick(item)}
-                className={className}
-                style={style}
-              >
-                {content}
-              </button>
-            );
-          }
-
           return (
-            <Link
+            <button
+              type="button"
               key={item.label}
-              href={item.href}
+              onClick={() => handleClick(item)}
               className={className}
               style={style}
-              prefetch={true}
             >
               {content}
-            </Link>
+            </button>
           );
         })}
       </div>

@@ -1,12 +1,24 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import BottomNav from './BottomNav';
+import TabContainer from './TabContainer';
 import MoreDrawer from '../tabs/MoreDrawer';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import InstallBanner from '@/components/ui/InstallBanner';
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+/** URL pathnames for the 4 main tabs (order matches tab indices) */
+const TAB_PATHS = ['/personal', '/people', '/vault', '/search'] as const;
+
+interface AppLayoutProps {
+  children?: React.ReactNode;
+  /** When set, renders the horizontal tab container instead of children */
+  initialTab?: number;
+}
+
+export default function AppLayout({ children, initialTab }: AppLayoutProps) {
+  const isTabMode = initialTab !== undefined;
+  const [activeTab, setActiveTab] = useState(initialTab ?? 0);
   const [showMore, setShowMore] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const { installState, showBanner, triggerInstall, dismissBanner } = useInstallPrompt();
@@ -35,6 +47,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  /** Switch to a tab and update the URL via replaceState (no navigation) */
+  const handleTabChange = useCallback((index: number) => {
+    setActiveTab(index);
+    // Update the browser URL so bookmarks/refresh land on the right tab
+    const targetPath = TAB_PATHS[index] ?? '/personal';
+    if (window.location.pathname !== targetPath) {
+      window.history.replaceState(null, '', targetPath);
+    }
+  }, []);
+
   return (
     <div className="flex h-[100dvh] flex-col overflow-hidden" style={{ background: 'var(--color-bg)' }}>
       {/* Animated mesh gradient background */}
@@ -56,9 +78,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
         style={{ paddingBottom: keyboardOpen ? 0 : 'var(--app-bottom-nav-pad)' }}
       >
-        {children}
+        {isTabMode ? (
+          <TabContainer activeTab={activeTab} />
+        ) : (
+          children
+        )}
       </main>
-      <BottomNav onMoreClick={() => setShowMore(true)} />
+      <BottomNav
+        onMoreClick={() => setShowMore(true)}
+        activeTab={isTabMode ? activeTab : undefined}
+        onTabChange={isTabMode ? handleTabChange : undefined}
+      />
       {showMore && <MoreDrawer onClose={() => setShowMore(false)} />}
       {showBanner && (installState === 'available' || installState === 'ios') && (
         <InstallBanner
