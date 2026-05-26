@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { BookOpen, Users, Shield, Search, MoreHorizontal } from 'lucide-react';
 
 interface NavItem {
@@ -99,16 +100,8 @@ export default function BottomNav({ onMoreClick }: BottomNavProps) {
       >
         {NAV_ITEMS.map((item) => {
           const active = isActive(item);
-          return (
-            <button
-              type="button"
-              key={item.label}
-              onClick={() => handleClick(item)}
-              className="relative flex min-h-[50px] min-w-[52px] flex-col items-center justify-end gap-0.5 rounded-xl px-3 pb-1 pt-1 transition-[color,transform] duration-200"
-              style={{
-                color: active ? 'var(--color-accent)' : 'var(--color-text-muted)',
-              }}
-            >
+          const content = (
+            <>
               <div
                 className="flex h-8 items-center justify-center transition-transform duration-200 ease-out"
                 style={{ transform: active ? 'translateY(-1px)' : 'translateY(0)' }}
@@ -123,7 +116,36 @@ export default function BottomNav({ onMoreClick }: BottomNavProps) {
                   aria-hidden
                 />
               )}
-            </button>
+            </>
+          );
+
+          const className = "relative flex min-h-[50px] min-w-[52px] flex-col items-center justify-end gap-0.5 rounded-xl px-3 pb-1 pt-1 transition-[color,transform] duration-200";
+          const style = { color: active ? 'var(--color-accent)' : 'var(--color-text-muted)' };
+
+          if (item.label === 'More') {
+            return (
+              <button
+                type="button"
+                key={item.label}
+                onClick={() => handleClick(item)}
+                className={className}
+                style={style}
+              >
+                {content}
+              </button>
+            );
+          }
+
+          return (
+            <Link
+              key={item.label}
+              href={item.href}
+              className={className}
+              style={style}
+              prefetch={true}
+            >
+              {content}
+            </Link>
           );
         })}
       </div>

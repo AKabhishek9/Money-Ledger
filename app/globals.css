@@ -324,9 +324,9 @@ input[type='date']::-webkit-calendar-picker-indicator {
 
 /* Glass context menu / dropdown */
 .glass-menu {
-  background: var(--color-glass-heavy);
-  backdrop-filter: blur(20px) saturate(1.4);
-  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  background: rgba(22, 22, 24, 0.95);
+  backdrop-filter: blur(32px) saturate(1.4);
+  -webkit-backdrop-filter: blur(32px) saturate(1.4);
   border: 1px solid var(--color-glass-border-accent);
   box-shadow: var(--shadow-glass);
 }
