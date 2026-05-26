@@ -12,6 +12,9 @@ function getLocalDateString(): string {
   const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+const MAX_RAW_TEXT_LENGTH = 500;
+
 interface EntryInputProps {
   onAdd: (
     rawText: string,
@@ -37,19 +40,42 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const viewportBaselineRef = useRef<number | null>(null);
 
   const combined = `${amountInput} ${noteInput}`.trim();
   const parsed = combined ? parseEntry(combined) : null;
+  const noteMaxLength = Math.max(
+    0,
+    MAX_RAW_TEXT_LENGTH - amountInput.length - (amountInput.length > 0 ? 1 : 0)
+  );
+
+  const handleAmountChange = useCallback((value: string) => {
+    // FIXED: SEC-4
+    const nextAmount = value.slice(0, MAX_RAW_TEXT_LENGTH);
+    setAmountInput(nextAmount);
+    setNoteInput((currentNote) => {
+      const maxNoteLength = Math.max(
+        0,
+        MAX_RAW_TEXT_LENGTH - nextAmount.length - (nextAmount.length > 0 ? 1 : 0)
+      );
+      return currentNote.slice(0, maxNoteLength);
+    });
+  }, []);
+
+  const handleNoteChange = useCallback((value: string) => {
+    setNoteInput(value.slice(0, noteMaxLength));
+  }, [noteMaxLength]);
 
   // ── Keyboard detection via VisualViewport API ──
   useEffect(() => {
     const vv = window.visualViewport;
     if (!vv) return;
 
-    const initialHeight = vv.height;
+    viewportBaselineRef.current = vv.height;
 
     const handleResize = () => {
-      const diff = initialHeight - vv.height;
+      const baseline = viewportBaselineRef.current ?? vv.height;
+      const diff = baseline - vv.height;
       // If viewport shrank by more than 100px, keyboard is open
       if (diff > 100) {
         setKeyboardOpen(true);
@@ -57,9 +83,20 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
         setKeyboardOpen(false);
       }
     };
+    const handleOrientationChange = () => {
+      // FIXED: BUG-L5
+      window.setTimeout(() => {
+        viewportBaselineRef.current = window.visualViewport?.height ?? window.innerHeight;
+        handleResize();
+      }, 250);
+    };
 
     vv.addEventListener('resize', handleResize);
-    return () => vv.removeEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleOrientationChange);
+    return () => {
+      vv.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+    };
   }, []);
 
   // Dispatch a custom event so BottomNav can hide itself
@@ -299,10 +336,11 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
             ref={inputRef}
             type="text"
             value={amountInput}
-            onChange={(e) => setAmountInput(e.target.value)}
+            onChange={(e) => handleAmountChange(e.target.value)}
             onKeyDown={handleKey}
             placeholder="Enter Amount"
             disabled={disabled || loading}
+            maxLength={MAX_RAW_TEXT_LENGTH}
             className="amount-mono min-w-0 flex-[1.1] px-3 py-3 text-[0.9375rem] outline-none"
             style={{
               color: 'var(--color-text)',
@@ -318,10 +356,11 @@ export default function EntryInput({ onAdd, disabled, persons }: EntryInputProps
           <input
             type="text"
             value={noteInput}
-            onChange={(e) => setNoteInput(e.target.value)}
+            onChange={(e) => handleNoteChange(e.target.value)}
             onKeyDown={handleKey}
             placeholder="Note"
             disabled={disabled || loading}
+            maxLength={noteMaxLength}
             className="min-w-0 flex-[0.9] px-2 py-3 pr-1 text-[0.9375rem] outline-none"
             style={{
               color: 'var(--color-text)',

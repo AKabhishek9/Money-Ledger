@@ -22,7 +22,9 @@ service cloud.firestore {
       allow create: if isAuth() && isOwner(request.resource.data.userId)
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0;
-      allow update, delete: if isAuth() && isOwner(resource.data.userId);
+      allow update: if isAuth() && isOwner(resource.data.userId)
+        && request.resource.data.userId == resource.data.userId; // FIXED: SEC-3
+      allow delete: if isAuth() && isOwner(resource.data.userId);
     }
 
     // Windows / Pages within tabs
@@ -31,7 +33,9 @@ service cloud.firestore {
       allow create: if isAuth() && isOwner(request.resource.data.userId)
         && request.resource.data.title is string
         && request.resource.data.title.size() > 0;
-      allow update, delete: if isAuth() && isOwner(resource.data.userId);
+      allow update: if isAuth() && isOwner(resource.data.userId)
+        && request.resource.data.userId == resource.data.userId; // FIXED: SEC-3
+      allow delete: if isAuth() && isOwner(resource.data.userId);
     }
 
     // Entries within windows
@@ -39,8 +43,14 @@ service cloud.firestore {
       allow read: if isAuth() && isOwner(resource.data.userId);
       allow create: if isAuth() && isOwner(request.resource.data.userId)
         && request.resource.data.rawText is string
-        && request.resource.data.rawText.size() > 0;
-      allow update, delete: if isAuth() && isOwner(resource.data.userId);
+        && request.resource.data.rawText.size() > 0
+        && request.resource.data.rawText.size() <= 500; // FIXED: SEC-4
+      allow update: if isAuth() && isOwner(resource.data.userId)
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.rawText is string
+        && request.resource.data.rawText.size() > 0
+        && request.resource.data.rawText.size() <= 500; // FIXED: SEC-3
+      allow delete: if isAuth() && isOwner(resource.data.userId);
     }
 
     // People (person ledger headers)
@@ -49,14 +59,24 @@ service cloud.firestore {
       allow create: if isAuth() && isOwner(request.resource.data.userId)
         && request.resource.data.name is string
         && request.resource.data.name.size() > 0;
-      allow update, delete: if isAuth() && isOwner(resource.data.userId);
+      allow update: if isAuth() && isOwner(resource.data.userId)
+        && request.resource.data.userId == resource.data.userId; // FIXED: SEC-3
+      allow delete: if isAuth() && isOwner(resource.data.userId);
     }
 
     // Person ledger entries
     match /personEntries/{entryId} {
       allow read: if isAuth() && isOwner(resource.data.userId);
-      allow create: if isAuth() && isOwner(request.resource.data.userId);
-      allow update, delete: if isAuth() && isOwner(resource.data.userId);
+      allow create: if isAuth() && isOwner(request.resource.data.userId)
+        && request.resource.data.rawText is string
+        && request.resource.data.rawText.size() > 0
+        && request.resource.data.rawText.size() <= 500; // FIXED: SEC-4
+      allow update: if isAuth() && isOwner(resource.data.userId)
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.rawText is string
+        && request.resource.data.rawText.size() > 0
+        && request.resource.data.rawText.size() <= 500; // FIXED: SEC-3
+      allow delete: if isAuth() && isOwner(resource.data.userId);
     }
 
     // Vault items
@@ -65,7 +85,9 @@ service cloud.firestore {
       allow create: if isAuth() && isOwner(request.resource.data.userId)
         && request.resource.data.title is string
         && request.resource.data.title.size() > 0;
-      allow update, delete: if isAuth() && isOwner(resource.data.userId);
+      allow update: if isAuth() && isOwner(resource.data.userId)
+        && request.resource.data.userId == resource.data.userId; // FIXED: SEC-3
+      allow delete: if isAuth() && isOwner(resource.data.userId);
     }
 
     // Deny all other access

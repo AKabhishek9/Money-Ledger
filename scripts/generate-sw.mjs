@@ -22,7 +22,8 @@ function getFilesRecursively(dir) {
 
 function computeHash(filePath) {
   const fileBuffer = fs.readFileSync(filePath);
-  const hashSum = crypto.createHash('sha1');
+  // FIXED: SW-2
+  const hashSum = crypto.createHash('sha256');
   hashSum.update(fileBuffer);
   return hashSum.digest('hex').substring(0, 8);
 }
@@ -67,6 +68,7 @@ const PRECACHE_ASSETS = ${JSON.stringify(precacheEntries, null, 2)};
 
 
 self.addEventListener('install', (event) => {
+  self.skipWaiting(); // FIXED: SW-3
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       const urlsToCache = PRECACHE_ASSETS.map(entry => entry.url);
@@ -97,6 +99,23 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  if (url.pathname.startsWith('/_next/static/')) {
+    // FIXED: SW-1
+    event.respondWith((async () => {
+      const cache = await caches.open(CACHE_NAME);
+      const cachedResponse = await cache.match(event.request, { ignoreSearch: true });
+      if (cachedResponse) return cachedResponse;
+      const networkResponse = await fetch(event.request);
+      if (networkResponse && networkResponse.status === 200) {
+        cache.put(event.request, networkResponse.clone()).catch(err => {
+          console.warn('Failed to cache Next static asset:', err);
+        });
+      }
+      return networkResponse;
+    })().catch(() => new Response('Resource offline', { status: 503, statusText: 'Offline' })));
+    return;
+  }
+
   if (url.pathname.startsWith('/_next/')) {
     return;
   }
@@ -106,6 +125,8 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (url.hostname.endsWith('.googleapis.com') && event.request.method === 'GET') {
+    // FIXED: SW-4 — stale-while-revalidate with 5-minute TTL for auth requests
+    const AUTH_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes
     event.respondWith((async () => {
       const cache = await caches.open('firebase-auth');
       try {
@@ -114,12 +135,25 @@ self.addEventListener('fetch', (event) => {
         const networkResponse = await fetch(event.request, { signal: controller.signal });
         clearTimeout(timeoutId);
         if (networkResponse && networkResponse.status === 200) {
-          cache.put(event.request, networkResponse.clone());
+          const cloned = networkResponse.clone();
+          const headers = new Headers(cloned.headers);
+          headers.set('X-SW-Cache-Time', String(Date.now()));
+          const timedResponse = new Response(await cloned.blob(), {
+            status: cloned.status,
+            statusText: cloned.statusText,
+            headers,
+          });
+          cache.put(event.request, timedResponse);
         }
         return networkResponse;
       } catch (error) {
         const cached = await cache.match(event.request);
-        if (cached) return cached;
+        if (cached) {
+          const cacheTime = parseInt(cached.headers.get('X-SW-Cache-Time') || '0', 10);
+          if (Date.now() - cacheTime < AUTH_MAX_AGE_MS) {
+            return cached;
+          }
+        }
         return new Response('Auth offline', { status: 503, statusText: 'Offline' });
       }
     })());

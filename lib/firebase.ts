@@ -1,6 +1,8 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from 'firebase/app';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import { getAuth, type Auth } from 'firebase/auth';
 import {
+  connectFirestoreEmulator,
   getFirestore,
   initializeFirestore,
   type Firestore,
@@ -36,6 +38,35 @@ const db: Firestore = (() => {
     return getFirestore(app);
   }
 })();
+
+if (
+  typeof window !== 'undefined' &&
+  process.env.NEXT_PUBLIC_USE_FIRESTORE_EMULATOR === 'true'
+) {
+  try {
+    // FIXED: FB-3
+    connectFirestoreEmulator(db, 'localhost', 8080);
+  } catch {
+    // Emulator may already be connected during hot reload.
+  }
+}
+
+if (
+  typeof window !== 'undefined' &&
+  process.env.NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY
+) {
+  try {
+    // FIXED: SEC-2
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider(
+        process.env.NEXT_PUBLIC_FIREBASE_APPCHECK_SITE_KEY
+      ),
+      isTokenAutoRefreshEnabled: true,
+    });
+  } catch {
+    // App Check may already be initialized during hot reload.
+  }
+}
 
 export { auth, db };
 export default app;

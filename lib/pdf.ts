@@ -29,11 +29,17 @@ function formatPdfBalance(amount: number): string {
 }
 
 function safeText(text: string): string {
-  return text.replace(/[^\x20-\x7E]/g, ' ');
+  // FIXED: BUG-L4
+  return text.replace(/\u20B9/g, 'Rs.').replace(/[^\x20-\x7E]/g, ' ');
 }
 
 function sanitizeFilename(name: string): string {
   return safeText(name).replace(/[\\/:*?"<>|]/g, '-').trim() || 'Money-Ledger';
+}
+
+function rightAlignedX(font: PDFFont, text: string, size: number, rightX: number): number {
+  // FIXED: BUG-L3
+  return rightX - font.widthOfTextAtSize(text, size);
 }
 
 async function createBasePdf(title: string): Promise<{
@@ -123,14 +129,14 @@ export async function exportWindowToPDF(windowTitle: string, entries: Entry[]): 
     });
     currentPage.drawText(note, { x: columns.note, y, size: 9, font, color: rgb(0.1, 0.1, 0.1) });
     currentPage.drawText(amountText, {
-      x: columns.amount - amountText.length * 4.4,
+      x: rightAlignedX(boldFont, amountText, 9, columns.amount),
       y,
       size: 9,
       font: boldFont,
       color: amountColor,
     });
     currentPage.drawText(balanceText, {
-      x: columns.balance - balanceText.length * 4.4,
+      x: rightAlignedX(boldFont, balanceText, 9, columns.balance),
       y,
       size: 9,
       font: boldFont,
@@ -159,7 +165,7 @@ export async function exportWindowToPDF(windowTitle: string, entries: Entry[]): 
   });
   currentPage.drawText('TOTAL', { x: columns.note, y: y - 16, size: 9, font: boldFont, color: rgb(0.25, 0.25, 0.25) });
   currentPage.drawText(totalText, {
-    x: columns.balance - totalText.length * 4.6,
+    x: rightAlignedX(boldFont, totalText, 11, columns.balance),
     y: y - 16,
     size: 11,
     font: boldFont,
@@ -205,14 +211,14 @@ export async function exportPersonToPDF(personName: string, entries: PersonEntry
       color: rgb(0.1, 0.1, 0.1),
     });
     currentPage.drawText(amountText, {
-      x: columns.amount - amountText.length * 4.4,
+      x: rightAlignedX(boldFont, amountText, 9, columns.amount),
       y,
       size: 9,
       font: boldFont,
       color: entry.amount >= 0 ? rgb(0.13, 0.62, 0.44) : rgb(0.82, 0.24, 0.24),
     });
     currentPage.drawText(balanceText, {
-      x: columns.balance - balanceText.length * 4.4,
+      x: rightAlignedX(boldFont, balanceText, 9, columns.balance),
       y,
       size: 9,
       font: boldFont,

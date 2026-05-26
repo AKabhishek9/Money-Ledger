@@ -13,21 +13,20 @@ import {
 } from '@/lib/entries';
 import { parseEntry, formatAmount, calcTotal } from '@/lib/parser';
 import { formatDate } from '@/lib/utils';
-import { exportWindowToCSV } from '@/lib/export';
-import { exportWindowToPDF } from '@/lib/pdf';
 import EntryInput from '@/components/entry/EntryInput';
 import EntryItem from '@/components/entry/EntryItem';
 import EditEntrySheet from './EditEntrySheet';
 
 
 interface WindowViewProps {
-  window: MoneyWindow;
+  moneyWindow: MoneyWindow;
   userId: string;
   onBack: () => void;
   persons: Person[];
 }
 
-export default function WindowView({ window: w, userId, persons }: WindowViewProps) {
+export default function WindowView({ moneyWindow: w, userId, persons }: WindowViewProps) {
+  // FIXED: BUG-L14
   const [entries, setEntries] = useState<Entry[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -194,7 +193,11 @@ export default function WindowView({ window: w, userId, persons }: WindowViewPro
             <div className="flex shrink-0 items-center gap-2">
               <button
                 type="button"
-                onClick={() => exportWindowToCSV(w.title, entries)}
+                onClick={async () => {
+                  const { exportWindowToCSV } = await import('@/lib/export');
+                  // FIXED: PERF-8
+                  exportWindowToCSV(w.title, entries);
+                }}
                 className="flex h-10 items-center gap-1.5 rounded-xl px-3.5 text-xs font-semibold transition-opacity duration-150 active:opacity-80"
                 style={{
                   background: 'var(--color-surface-2)',
@@ -207,7 +210,11 @@ export default function WindowView({ window: w, userId, persons }: WindowViewPro
               </button>
               <button
                 type="button"
-                onClick={() => exportWindowToPDF(w.title, entries)}
+                onClick={async () => {
+                  const { exportWindowToPDF } = await import('@/lib/pdf');
+                  // FIXED: PERF-8
+                  exportWindowToPDF(w.title, entries);
+                }}
                 className="flex h-10 items-center gap-1.5 rounded-xl px-3.5 text-xs font-semibold transition-opacity duration-150 active:opacity-80"
                 style={{
                   background: 'var(--color-surface-2)',

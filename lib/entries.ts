@@ -151,15 +151,8 @@ export async function localGetPersonEntries(personId: string): Promise<PersonEnt
 export function computeRunningBalance<T extends { amount: number; entryDate: Date; createdAt?: Date }>(
   entries: T[]
 ): Array<T & { runningBalance: number }> {
-  const sorted = [...entries].sort((a, b) => {
-    const byEntryDate = a.entryDate.getTime() - b.entryDate.getTime();
-    if (byEntryDate !== 0) return byEntryDate;
-
-    const aCreatedAt = a.createdAt?.getTime() ?? 0;
-    const bCreatedAt = b.createdAt?.getTime() ?? 0;
-    return aCreatedAt - bCreatedAt;
-  });
-
+  // FIXED: BUG-M9
+  const sorted = entries;
   let runningBalance = 0;
   const withBalance = sorted.map((entry) => {
     runningBalance += entry.amount;

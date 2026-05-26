@@ -24,8 +24,10 @@ export default function MoreDrawer({ onClose }: MoreDrawerProps) {
 
   useEffect(() => {
     if (!user) return;
+    // FIXED: BUG-L7 — skip if tabs are already loaded
+    if (tabs.length > 0) return;
     loadTabs(user.uid);
-  }, [user, loadTabs]);
+  }, [user, loadTabs, tabs.length]);
 
   const handleNavigate = (href: string) => {
     router.push(href);

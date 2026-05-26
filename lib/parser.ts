@@ -1,13 +1,56 @@
 import type { ParsedEntry, EntryType } from '@/lib/types';
 
-// Safe math evaluator — no eval(), only digits and operators
+// FIXED: BUG-L2 — CSP-compatible recursive descent parser (no Function/eval)
 function safeEval(expr: string): number {
-  // Allow digits, spaces, and basic operators
   if (!/^[\d\s+\-*/.()]+$/.test(expr)) throw new Error('Invalid expression');
-  // Use Function constructor for safe evaluation scope
-  // eslint-disable-next-line no-new-func
-  const result = Function('"use strict"; return (' + expr + ')')();
-  if (typeof result !== 'number' || !isFinite(result)) throw new Error('Invalid result');
+  let pos = 0;
+  const src = expr.replace(/\s+/g, '');
+
+  function parseExpr(): number {
+    let left = parseTerm();
+    while (pos < src.length && (src[pos] === '+' || src[pos] === '-')) {
+      const op = src[pos++];
+      const right = parseTerm();
+      left = op === '+' ? left + right : left - right;
+    }
+    return left;
+  }
+
+  function parseTerm(): number {
+    let left = parseFactor();
+    while (pos < src.length && (src[pos] === '*' || src[pos] === '/')) {
+      const op = src[pos++];
+      const right = parseFactor();
+      left = op === '*' ? left * right : left / right;
+    }
+    return left;
+  }
+
+  function parseFactor(): number {
+    if (src[pos] === '(') {
+      pos++; // skip '('
+      const val = parseExpr();
+      pos++; // skip ')'
+      return val;
+    }
+    if (src[pos] === '-') {
+      pos++;
+      return -parseFactor();
+    }
+    if (src[pos] === '+') {
+      pos++;
+      return parseFactor();
+    }
+    const start = pos;
+    while (pos < src.length && (src[pos] >= '0' && src[pos] <= '9' || src[pos] === '.')) pos++;
+    const num = parseFloat(src.slice(start, pos));
+    if (isNaN(num)) throw new Error('Invalid number');
+    return num;
+  }
+
+  const result = parseExpr();
+  if (pos !== src.length) throw new Error('Unexpected character');
+  if (!isFinite(result)) throw new Error('Invalid result');
   return result;
 }
 
@@ -16,11 +59,12 @@ function safeEval(expr: string): number {
  *   5000-1200-300
  *   1000+200-50
  *   5000*2
- * Must start with a digit and contain at least one operator after the first char.
+ * May start with a sign and must contain at least one operator after the first number.
  */
 function isMathExpression(input: string): boolean {
-  // Starts with digit, contains operators, no text
-  return /^\d[\d\s+\-*/.()]+$/.test(input) && /[+\-*/(]/.test(input.slice(1));
+  const unsignedInput = input.replace(/^[+\-]/, '');
+  // FIXED: BUG-L1
+  return /^[+\-]?\d[\d\s+\-*/.()]+$/.test(input) && /[+\-*/(]/.test(unsignedInput.slice(1));
 }
 
 /**

@@ -13,6 +13,8 @@ export async function ensureSystemData(userId: string): Promise<void> {
     return bootstrapPromises.get(userId)!;
   }
 
+  // FIXED: BUG-L12 — set the map entry BEFORE starting async work to prevent
+  // same-tick concurrent callers from starting a duplicate
   const promise = (async () => {
     const db = getDb();
     const now = new Date();

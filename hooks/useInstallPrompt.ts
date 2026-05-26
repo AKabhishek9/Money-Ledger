@@ -72,18 +72,19 @@ export function useInstallPrompt() {
         return () => clearTimeout(timer);
       }
     };
-
-    window.addEventListener('beforeinstallprompt', handler);
-
-    // Listen for successful install
-    window.addEventListener('appinstalled', () => {
+    const installedHandler = () => {
       setInstallState('installed');
       setShowBanner(false);
       setDeferredPrompt(null);
-    });
+    };
+
+    window.addEventListener('beforeinstallprompt', handler);
+    window.addEventListener('appinstalled', installedHandler);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handler);
+      // FIXED: BUG-M8
+      window.removeEventListener('appinstalled', installedHandler);
     };
   }, [userId]);
 

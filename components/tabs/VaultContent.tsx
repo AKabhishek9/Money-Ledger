@@ -103,10 +103,7 @@ export default function VaultContent() {
     ? items.filter(
         (i) =>
           i.title.toLowerCase().includes(search.toLowerCase()) ||
-          i.type.toLowerCase().includes(search.toLowerCase()) ||
-          Object.values(i.fields).some((value) =>
-            value.toLowerCase().includes(search.toLowerCase())
-          )
+          i.type.toLowerCase().includes(search.toLowerCase())
       )
     : items;
 
@@ -143,8 +140,10 @@ export default function VaultContent() {
               <Shield size={20} style={{ color: 'var(--color-gold)' }} />
             </div>
             <p className="text-[0.8125rem] leading-snug" style={{ color: 'var(--color-text-muted)' }}>
-              Vault items are encrypted and stored securely in your private account. Only you can access them.
+              Vault items are saved in your private account. Avoid storing secrets that require end-to-end encryption.
             </p>
+            {/* FIXED: BUG-C1 */}
+            {/* FIXED: BUG-L10 */}
           </div>
         </div>
 

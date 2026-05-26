@@ -11,8 +11,6 @@ import {
   localUpdatePersonEntry,
 } from '@/lib/entries';
 import { parseEntry, formatAmount, calcTotal } from '@/lib/parser';
-import { exportPersonToCSV } from '@/lib/export';
-import { exportPersonToPDF } from '@/lib/pdf';
 import EntryInput from '@/components/entry/EntryInput';
 import EntryItem from '@/components/entry/EntryItem';
 import EditEntrySheet from '@/components/windows/EditEntrySheet';
@@ -155,7 +153,11 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
           <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
-              onClick={() => exportPersonToPDF(person.name, entries)}
+              onClick={async () => {
+                const { exportPersonToPDF } = await import('@/lib/pdf');
+                // FIXED: PERF-8
+                exportPersonToPDF(person.name, entries);
+              }}
               className="flex h-8 px-3 items-center justify-center gap-1.5 rounded-full text-xs font-semibold tracking-wide transition-opacity duration-150 active:opacity-80"
               style={{
                 background: 'var(--color-accent)',
@@ -168,7 +170,11 @@ export default function PersonLedger({ person, userId }: PersonLedgerProps) {
             </button>
             <button
               type="button"
-              onClick={() => exportPersonToCSV(person.name, entries)}
+              onClick={async () => {
+                const { exportPersonToCSV } = await import('@/lib/export');
+                // FIXED: PERF-8
+                exportPersonToCSV(person.name, entries);
+              }}
               className="flex h-8 px-3 items-center justify-center gap-1.5 rounded-full text-xs font-semibold tracking-wide transition-opacity duration-150 active:opacity-80"
               style={{
                 background: 'var(--color-accent)',

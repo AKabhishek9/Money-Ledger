@@ -32,6 +32,7 @@ const SYNC_COLLECTIONS: SyncCollection[] = [
 const BIN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 let isProcessing = false;
+let processQueueTimer: number | null = null;
 
 // ── Loop-guard: remember IDs we just wrote locally so incoming realtime
 //    snapshots don't echo them back as "remote changes".
@@ -42,17 +43,25 @@ function syncDocumentKey(collectionName: SyncCollection, documentId: string): st
   return `${collectionName}:${documentId}`;
 }
 
-function rememberLocalSync(collectionName: SyncCollection, documentId: string): void {
-  recentLocalSyncIds.set(syncDocumentKey(collectionName, documentId), Date.now());
-}
-
-function isRecentLocalSync(collectionName: SyncCollection, documentId: string): boolean {
+function cleanupRecentLocalSyncIds(): void {
   const now = Date.now();
   for (const [key, createdAt] of recentLocalSyncIds) {
     if (now - createdAt > RECENT_LOCAL_SYNC_TTL_MS) {
       recentLocalSyncIds.delete(key);
     }
   }
+}
+
+if (typeof window !== 'undefined') {
+  window.setInterval(cleanupRecentLocalSyncIds, RECENT_LOCAL_SYNC_TTL_MS);
+}
+
+function rememberLocalSync(collectionName: SyncCollection, documentId: string): void {
+  recentLocalSyncIds.set(syncDocumentKey(collectionName, documentId), Date.now());
+}
+
+function isRecentLocalSync(collectionName: SyncCollection, documentId: string): boolean {
+  // FIXED: BUG-L6
   return recentLocalSyncIds.has(syncDocumentKey(collectionName, documentId));
 }
 
@@ -61,6 +70,27 @@ function notifyRemoteSync(collectionName: SyncCollection): void {
   window.dispatchEvent(
     new CustomEvent('money-ledger-remote-sync', { detail: { collection: collectionName } })
   );
+}
+
+function notifySyncFailure(): void {
+  if (typeof window === 'undefined') return;
+  // FIXED: BUG-C3
+  window.dispatchEvent(new CustomEvent('money-ledger-sync-failed'));
+}
+
+function formatSyncError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
+function scheduleProcessSyncQueue(delay = 500): void {
+  if (typeof window === 'undefined' || !navigator.onLine) return;
+  // FIXED: PERF-3
+  if (processQueueTimer) window.clearTimeout(processQueueTimer);
+  processQueueTimer = window.setTimeout(() => {
+    processQueueTimer = null;
+    processSyncQueue().catch(() => undefined);
+  }, delay);
 }
 
 // ── Date / Timestamp helpers ──────────────────────────────────────────────────
@@ -75,6 +105,13 @@ function toFirestore(data: Record<string, unknown>): Record<string, unknown> {
       result[key] = Timestamp.fromDate(new Date(value));
     } else if (value === undefined) {
       result[key] = deleteField();
+    } else if (
+      value &&
+      typeof value === 'object' &&
+      !(value instanceof Timestamp) &&
+      !Array.isArray(value)
+    ) {
+      result[key] = toFirestore(value as Record<string, unknown>);
     } else {
       result[key] = value;
     }
@@ -131,7 +168,31 @@ export async function queueSync(
   });
 
   if (navigator.onLine) {
-    processSyncQueue().catch(() => undefined);
+    scheduleProcessSyncQueue();
+  }
+}
+
+export async function retryFailedSyncQueue(): Promise<void> {
+  if (typeof window === 'undefined') return;
+
+  const db = getDb();
+  const failedItems = await db.failedSyncQueue.orderBy('failedAt').toArray();
+  if (failedItems.length === 0) return;
+
+  const now = Date.now();
+  const retryItems = failedItems.map(({ id: _id, failedAt: _failedAt, lastError: _lastError, ...item }, index) => ({
+    ...item,
+    retries: 0,
+    createdAt: now + index,
+  }));
+
+  await db.syncQueue.bulkAdd(retryItems);
+  await db.failedSyncQueue.bulkDelete(
+    failedItems.flatMap((item) => (item.id === undefined ? [] : [item.id]))
+  );
+
+  if (navigator.onLine) {
+    scheduleProcessSyncQueue(0);
   }
 }
 
@@ -171,8 +232,16 @@ export async function processSyncQueue(): Promise<void> {
         const retries = item.retries + 1;
 
         if (retries >= 5) {
-          rememberLocalSync(item.collection, item.documentId);
+          const { id: _id, ...failedItem } = item;
+          // FIXED: BUG-C3
+          await db.failedSyncQueue.add({
+            ...failedItem,
+            retries,
+            failedAt: Date.now(),
+            lastError: formatSyncError(err),
+          });
           await db.syncQueue.delete(item.id);
+          notifySyncFailure();
         } else {
           await db.syncQueue.update(item.id, { retries });
         }
@@ -193,9 +262,8 @@ export async function processSyncQueue(): Promise<void> {
 async function fullHydrateFromFirestore(userId: string): Promise<void> {
   const db = getDb();
   const syncedAt = new Date();
-  let atLeastOneSynced = false;
 
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     SYNC_COLLECTIONS.map(async (collectionName) => {
       let attempts = 0;
       while (attempts < 3) {
@@ -209,13 +277,12 @@ async function fullHydrateFromFirestore(userId: string): Promise<void> {
           // Essential when user clears browser data — cache is wiped but
           // getDocs would return empty instead of fetching from server.
           const snapshot = await getDocsFromServer(q);
-          if (snapshot.empty) break;
+          if (snapshot.empty) return true;
 
           const records = snapshot.docs.map((d) => fromFirestore(d.data(), d.id));
           const table = db.table(collectionName) as Table<Record<string, unknown>, string>;
           await table.bulkPut(records);
-          atLeastOneSynced = true;
-          break;
+          return true;
         } catch (err) {
           console.warn(`Hydration attempt ${attempts}/3 failed for ${collectionName}:`, err);
           if (attempts < 3) {
@@ -223,13 +290,16 @@ async function fullHydrateFromFirestore(userId: string): Promise<void> {
           }
         }
       }
+      return false;
     })
   );
 
-  // Only mark synced if at least one collection returned real data.
-  // If all failed (offline/blocked), don't save lastSyncTime so next
-  // app open tries full hydration again instead of delta sync.
-  if (atLeastOneSynced) {
+  const allCollectionsSynced = results.every(
+    (result) => result.status === 'fulfilled' && result.value === true
+  );
+
+  // FIXED: DATA-FLOW
+  if (allCollectionsSynced) {
     await saveLastSyncTime(syncedAt);
   }
 }
@@ -333,6 +403,7 @@ export async function purgeExpiredBinItems(userId: string): Promise<void> {
 
 type Unsubscribe = () => void;
 let activeListeners: Unsubscribe[] = [];
+let realtimeGeneration = 0;
 
 /**
  * Start real-time Firestore listeners for all collections.
@@ -346,13 +417,30 @@ export function startRealtimeSync(userId: string): () => void {
 
   if (typeof window === 'undefined') return () => undefined;
 
+  const generation = ++realtimeGeneration;
+  startRealtimeListeners(userId, generation).catch((err) => {
+    console.warn('Failed to start realtime sync:', err);
+  });
+
+  return () => stopRealtimeSync();
+}
+
+async function startRealtimeListeners(userId: string, generation: number): Promise<void> {
   const db = getDb();
+  const lastSyncTime = await getLastSyncTime();
+  const since = Timestamp.fromDate(lastSyncTime ?? new Date(0));
+
+  if (generation !== realtimeGeneration) return;
 
   for (const collectionName of SYNC_COLLECTIONS) {
+    if (generation !== realtimeGeneration) return;
+
     try {
+      // FIXED: PERF-4
       const q = query(
         collection(firestoreDb, collectionName),
-        where('userId', '==', userId)
+        where('userId', '==', userId),
+        where('updatedAt', '>', since)
       );
 
       const unsub = onSnapshot(
@@ -365,8 +453,12 @@ export function startRealtimeSync(userId: string): () => void {
           );
           if (!hasServerChanges) return;
 
+          const [queuedItems, failedItems] = await Promise.all([
+            db.syncQueue.toArray(),
+            db.failedSyncQueue.toArray(),
+          ]);
           const queuedIds = new Set(
-            (await db.syncQueue.toArray()).map((item) => item.documentId)
+            [...queuedItems, ...failedItems].map((item) => item.documentId)
           );
 
           const genuinelyRemoteChanges = snapshot.docChanges().filter(
@@ -392,9 +484,10 @@ export function startRealtimeSync(userId: string): () => void {
             }
           }
 
-          notifyRemoteSync(collectionName);
           // Update lastSyncTime to now so next incremental sync is fresh
           await saveLastSyncTime();
+          // FIXED: DATA-FLOW
+          notifyRemoteSync(collectionName);
         },
         (error) => {
           console.warn(`Realtime listener error for ${collectionName}:`, error);
@@ -406,8 +499,6 @@ export function startRealtimeSync(userId: string): () => void {
       console.warn(`Failed to start listener for ${collectionName}:`, err);
     }
   }
-
-  return () => stopRealtimeSync();
 }
 
 /**
@@ -439,6 +530,7 @@ async function patchStoreWithRemoteDoc(
 }
 
 export function stopRealtimeSync(): void {
+  realtimeGeneration++;
   for (const unsub of activeListeners) {
     try {
       unsub();
@@ -475,6 +567,7 @@ export async function clearLocalData(): Promise<void> {
     db.personEntries.clear(),
     db.vault.clear(),
     db.syncQueue.clear(),
+    db.failedSyncQueue.clear(),
     db.lastSync.clear(),
   ]);
   if (typeof window !== 'undefined') {

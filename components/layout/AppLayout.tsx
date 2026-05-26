@@ -22,6 +22,8 @@ export default function AppLayout({ children, initialTab }: AppLayoutProps) {
   const [showMore, setShowMore] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
   const { installState, showBanner, triggerInstall, dismissBanner } = useInstallPrompt();
+  const [hasSyncFailures, setHasSyncFailures] = useState(false);
+  const [retryingSync, setRetryingSync] = useState(false);
   const [isOnline, setIsOnline] = useState(
     typeof window !== 'undefined' ? navigator.onLine : true
   );
@@ -45,6 +47,24 @@ export default function AppLayout({ children, initialTab }: AppLayoutProps) {
       window.removeEventListener('online', on);
       window.removeEventListener('offline', off);
     };
+  }, []);
+
+  useEffect(() => {
+    const handleSyncFailed = () => setHasSyncFailures(true);
+    window.addEventListener('money-ledger-sync-failed', handleSyncFailed);
+    return () => window.removeEventListener('money-ledger-sync-failed', handleSyncFailed);
+  }, []);
+
+  const handleRetryFailedSync = useCallback(async () => {
+    setRetryingSync(true);
+    try {
+      const { retryFailedSyncQueue } = await import('@/lib/sync');
+      await retryFailedSyncQueue();
+      // FIXED: BUG-C3
+      setHasSyncFailures(false);
+    } finally {
+      setRetryingSync(false);
+    }
   }, []);
 
   /** Switch to a tab and update the URL via replaceState (no navigation) */
@@ -73,6 +93,17 @@ export default function AppLayout({ children, initialTab }: AppLayoutProps) {
         >
           You are offline. Entries will be saved locally and synced when you reconnect.
         </div>
+      )}
+      {hasSyncFailures && (
+        <button
+          type="button"
+          onClick={handleRetryFailedSync}
+          disabled={retryingSync}
+          className="glass-panel text-center text-[10px] py-1 font-medium px-4 leading-tight relative z-10"
+          style={{ color: 'var(--color-expense)', borderBottom: '1px solid var(--color-glass-border)' }}
+        >
+          {retryingSync ? 'Retrying failed sync...' : 'Some changes failed to sync. Tap to retry.'}
+        </button>
       )}
       <main
         className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"

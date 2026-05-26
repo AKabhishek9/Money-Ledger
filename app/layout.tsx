@@ -16,7 +16,7 @@ const firaCode = Fira_Code({
   subsets: ['latin'],
   weight: ['400', '500', '600'],
   variable: '--font-mono',
-  display: 'swap',
+  display: 'optional', // FIXED: PERF-9 — prevent FOUT for numeric amounts
   preload: false,
 });
 

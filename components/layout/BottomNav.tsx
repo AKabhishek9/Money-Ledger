@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { BookOpen, Users, Shield, Search, MoreHorizontal } from 'lucide-react';
 
 interface NavItem {
@@ -59,6 +59,7 @@ interface BottomNavProps {
 
 export default function BottomNav({ onMoreClick, activeTab, onTabChange }: BottomNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [keyboardOpen, setKeyboardOpen] = useState(false);
 
   // Listen for keyboard-toggle custom event from EntryInput
@@ -90,6 +91,8 @@ export default function BottomNav({ onMoreClick, activeTab, onTabChange }: Botto
       onTabChange(item.tabIndex);
       return;
     }
+    // Not in tab mode (e.g. Settings page), so do normal navigation
+    router.push(item.href);
   };
 
   // Hide the nav completely when the mobile keyboard is open

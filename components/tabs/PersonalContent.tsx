@@ -18,6 +18,8 @@ import type { Tab, MoneyWindow, Entry } from '@/lib/types';
 import { formatAmount } from '@/lib/parser';
 import { Archive } from 'lucide-react';
 
+type WindowStats = { total: number; count: number; recentEntries: Entry[] };
+
 export default function PersonalContent() {
   const { userId } = useAuth();
   const {
@@ -56,6 +58,48 @@ export default function PersonalContent() {
 
   const selectedWindow = windows.find((w) => w.id === windowId) || null;
   const prevWindowIdRef = useRef<string | null>(null);
+  const statsCacheRef = useRef<Map<string, WindowStats>>(new Map());
+
+  const refreshWindowStats = useCallback(
+    async (
+      targetWindows: MoneyWindow[],
+      isCancelled: () => boolean,
+      invalidate = false
+    ) => {
+      try {
+        const updates: Record<string, WindowStats> = {};
+        await Promise.all(
+          targetWindows.map(async (w) => {
+            if (!invalidate) {
+              const cached = statsCacheRef.current.get(w.id);
+              if (cached) {
+                updates[w.id] = cached;
+                return;
+              }
+            }
+
+            const entries = await localGetEntries(w.id);
+            const stats = {
+              total: entries.reduce((sum, entry) => sum + entry.amount, 0),
+              count: entries.length,
+              recentEntries: entries.slice(-5),
+            };
+            statsCacheRef.current.set(w.id, stats);
+            updates[w.id] = stats;
+          })
+        );
+
+        if (!isCancelled()) {
+          // FIXED: BUG-M5
+          // FIXED: PERF-5
+          setWindowStats((prevStats) => ({ ...prevStats, ...updates }));
+        }
+      } catch (err) {
+        console.error('Failed to refresh window stats:', err);
+      }
+    },
+    []
+  );
 
   const globalTotalBalance = useMemo(() => {
     return Object.values(windowStats).reduce((sum, w) => sum + w.total, 0);
@@ -72,25 +116,18 @@ export default function PersonalContent() {
 
 
   useEffect(() => {
+    let cancelled = false;
     const prev = prevWindowIdRef.current;
     prevWindowIdRef.current = windowId;
 
     if (prev !== null && windowId === null && windows.length > 0) {
-      Promise.all(
-        windows.map(async (w) => {
-          const entries = await localGetEntries(w.id);
-          setWindowStats((prevStats) => ({
-            ...prevStats,
-            [w.id]: {
-              total: entries.reduce((sum, entry) => sum + entry.amount, 0),
-              count: entries.length,
-              recentEntries: [...entries].reverse().slice(0, 5),
-            },
-          }));
-        })
-      ).catch(() => undefined);
+      void refreshWindowStats(windows, () => cancelled, true);
     }
-  }, [windowId, windows]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [windowId, windows, refreshWindowStats]);
   const load = useCallback(async () => {
     if (!userId) return;
     const storeState = useStore.getState();
@@ -121,46 +158,32 @@ export default function PersonalContent() {
       setWindows(wins);
       setLoading(false);
 
-      wins.forEach(async (w) => {
-        const entries = await localGetEntries(w.id);
-        setWindowStats((prev) => ({
-          ...prev,
-          [w.id]: {
-            total: entries.reduce((s, e) => s + e.amount, 0),
-            count: entries.length,
-            recentEntries: [...entries].reverse().slice(0, 5),
-          },
-        }));
-      });
+      void refreshWindowStats(wins, () => false);
     } finally {
       setLoading(false);
     }
-  }, [userId, addWindow, loadWindows]);
+  // FIXED: BUG-M4
+  }, [userId, loadWindows, refreshWindowStats]);
 
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
+    let cancelled = false;
     const handleVisible = () => {
       if (document.visibilityState === 'visible' && windows.length > 0) {
-        windows.forEach(async (w) => {
-          const entries = await localGetEntries(w.id);
-          setWindowStats((prev) => ({
-            ...prev,
-            [w.id]: {
-              total: entries.reduce((s, e) => s + e.amount, 0),
-              count: entries.length,
-              recentEntries: [...entries].reverse().slice(0, 5),
-            },
-          }));
-        });
+        void refreshWindowStats(windows, () => cancelled);
       }
     };
 
     document.addEventListener('visibilitychange', handleVisible);
-    return () => document.removeEventListener('visibilitychange', handleVisible);
-  }, [windows]);
+    return () => {
+      cancelled = true;
+      document.removeEventListener('visibilitychange', handleVisible);
+    };
+  }, [windows, refreshWindowStats]);
 
 
   useEffect(() => {
+    let cancelled = false;
     const handleRemoteSync = (event: Event) => {
       const collection = (event as CustomEvent<{ collection?: string }>).detail?.collection;
 
@@ -170,29 +193,22 @@ export default function PersonalContent() {
       }
 
       if (collection === 'entries' && windows.length > 0) {
-        windows.forEach(async (w) => {
-          const entries = await localGetEntries(w.id);
-          setWindowStats((prev) => ({
-            ...prev,
-            [w.id]: {
-              total: entries.reduce((s, e) => s + e.amount, 0),
-              count: entries.length,
-              recentEntries: [...entries].reverse().slice(0, 5),
-            },
-          }));
-        });
+        void refreshWindowStats(windows, () => cancelled, true);
       }
     };
 
     window.addEventListener('money-ledger-remote-sync', handleRemoteSync);
-    return () => window.removeEventListener('money-ledger-remote-sync', handleRemoteSync);
-  }, [load, windows]);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('money-ledger-remote-sync', handleRemoteSync);
+    };
+  }, [load, windows, refreshWindowStats]);
   const handleAddWindow = async () => {
     if (!userId || !personalTab || !newWindowTitle.trim()) return;
     await addWindow(userId, personalTab.id, newWindowTitle.trim());
     setNewWindowTitle('');
     setShowAddSheet(false);
-    load();
+    // FIXED: BUG-L11
   };
 
   const handlePin = async (w: MoneyWindow) => {
@@ -236,7 +252,7 @@ export default function PersonalContent() {
         />
         <div className="flex-1 min-h-0 flex flex-col">
           <WindowView
-            window={selectedWindow}
+            moneyWindow={selectedWindow}
             userId={userId!}
             onBack={() => setWindowId(null)}
             persons={persons}

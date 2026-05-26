@@ -180,7 +180,7 @@ function TabContent() {
         />
         <div className="flex-1 min-h-0 flex flex-col">
           <WindowView
-            window={selectedWindow}
+            moneyWindow={selectedWindow}
             userId={userId!}
             onBack={() => router.push(`/tab?t=${tabId}`)}
             persons={persons}

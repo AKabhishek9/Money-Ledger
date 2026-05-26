@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Search, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/layout/Header';
@@ -8,7 +8,11 @@ import Loader from '@/components/ui/Loader';
 import { useAuth } from '@/contexts/AuthContext';
 import { getDb } from '@/lib/db';
 import { formatAmount } from '@/lib/parser';
-import { formatRelativeDate, debounce } from '@/lib/utils';
+import { formatRelativeDate } from '@/lib/utils';
+
+const SEARCH_DEBOUNCE_MS = 200;
+const SEARCH_RESULT_LIMIT = 50;
+const SEARCH_SOURCE_LIMIT = 500;
 
 interface SearchResult {
   id: string;
@@ -33,42 +37,45 @@ export default function SearchContent({ onNavigateToTab }: SearchContentProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [allResults, setAllResults] = useState<SearchResult[] | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRunRef = useRef(0);
 
-  // Pre-warm the search pool on mount
   useEffect(() => {
-    if (userId) {
-      loadSearchResults(userId).then(setAllResults).catch(() => undefined);
-    }
-  }, [userId]);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const doSearch = useCallback(
-    debounce((q: unknown, pool: unknown) => {
-      const queryStr = q as string;
-      const resultPool = pool as SearchResult[] | null;
-      
-      if (!queryStr.trim()) { 
-        setResults([]); 
-        setSearched(false); 
-        return; 
-      }
-
-      const lower = queryStr.toLowerCase();
-      const filtered = (resultPool || []).filter(
-        (result) =>
-          result.searchText.includes(lower) ||
-          (result.amount !== undefined && String(Math.abs(result.amount)).includes(lower))
-      );
-      setResults(filtered);
-      setSearched(true);
-    }, 200),
-    []
-  );
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const handleChange = (val: string) => {
     setQuery(val);
-    doSearch(val, allResults);
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    if (!val.trim() || !userId) {
+      setResults([]);
+      setSearched(false);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const runId = searchRunRef.current + 1;
+    searchRunRef.current = runId;
+
+    timerRef.current = setTimeout(async () => {
+      try {
+        const nextResults = await loadSearchResults(userId, val);
+        if (searchRunRef.current === runId) {
+          // FIXED: BUG-M6
+          // FIXED: PERF-10
+          setResults(nextResults);
+          setSearched(true);
+        }
+      } finally {
+        if (searchRunRef.current === runId) {
+          setLoading(false);
+        }
+      }
+    }, SEARCH_DEBOUNCE_MS);
   };
 
   const handleResultClick = (entry: SearchResult) => {
@@ -188,11 +195,12 @@ export default function SearchContent({ onNavigateToTab }: SearchContentProps) {
   );
 }
 
-async function loadSearchResults(userId: string): Promise<SearchResult[]> {
+async function loadSearchResults(userId: string, query: string): Promise<SearchResult[]> {
   const db = getDb();
+  const lower = query.trim().toLowerCase();
   const [entries, personEntries, vaultItems, windows, tabs, persons] = await Promise.all([
-    db.entries.where('userId').equals(userId).sortBy('entryDate'),
-    db.personEntries.where('userId').equals(userId).sortBy('entryDate'),
+    db.entries.where('userId').equals(userId).limit(SEARCH_SOURCE_LIMIT).sortBy('entryDate'),
+    db.personEntries.where('userId').equals(userId).limit(SEARCH_SOURCE_LIMIT).sortBy('entryDate'),
     db.vault.where('userId').equals(userId).sortBy('createdAt'),
     db.windows.where('userId').equals(userId).toArray(),
     db.tabs.where('userId').equals(userId).toArray(),
@@ -250,7 +258,7 @@ async function loadSearchResults(userId: string): Promise<SearchResult[]> {
     title: item.title,
     subtitle: `Vault · ${item.type}`,
     href: '/vault',
-    searchText: [item.title, item.type, ...Object.values(item.fields)].join(' ').toLowerCase(),
+    searchText: [item.title, item.type].join(' ').toLowerCase(),
   }));
 
   const windowResults: SearchResult[] = windows.map((window) => {
@@ -288,5 +296,12 @@ async function loadSearchResults(userId: string): Promise<SearchResult[]> {
     ...vaultResults,
     ...windowResults,
     ...tabResults,
-  ].reverse();
+  ]
+    .filter(
+      (result) =>
+        result.searchText.includes(lower) ||
+        (result.amount !== undefined && String(Math.abs(result.amount)).includes(lower))
+    )
+    .reverse()
+    .slice(0, SEARCH_RESULT_LIMIT);
 }

@@ -65,6 +65,16 @@ function ArchiveContent() {
 
   useEffect(() => { load(); }, [load]);
 
+  // FIXED: BUG-L9 — refresh when remote sync changes windows
+  useEffect(() => {
+    const handleRemoteSync = (event: Event) => {
+      const collection = (event as CustomEvent<{ collection?: string }>).detail?.collection;
+      if (collection === 'windows') load();
+    };
+    window.addEventListener('money-ledger-remote-sync', handleRemoteSync);
+    return () => window.removeEventListener('money-ledger-remote-sync', handleRemoteSync);
+  }, [load]);
+
   const getTabName = (tabId: string) =>
     tabs.find((t) => t.id === tabId)?.name || 'Unknown Tab';
 

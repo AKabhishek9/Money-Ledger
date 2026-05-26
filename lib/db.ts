@@ -11,6 +11,11 @@ export interface SyncQueueItem {
   retries: number;
 }
 
+export interface FailedSyncQueueItem extends SyncQueueItem {
+  failedAt: number;
+  lastError?: string;
+}
+
 export interface LastSyncRecord {
   key: string;   // e.g. 'global'
   value: string; // ISO date string
@@ -24,6 +29,7 @@ export class MoneyLedgerDb extends Dexie {
   personEntries!: Table<PersonEntry, string>;
   vault!: Table<VaultItem, string>;
   syncQueue!: Table<SyncQueueItem, number>;
+  failedSyncQueue!: Table<FailedSyncQueueItem, number>;
   lastSync!: Table<LastSyncRecord, string>;
 
   constructor() {
@@ -50,6 +56,19 @@ export class MoneyLedgerDb extends Dexie {
       vault:         'id, userId',
       syncQueue:     '++id, collection, documentId, createdAt',
       lastSync:      'key',
+    });
+
+    // FIXED: BUG-C3
+    this.version(3).stores({
+      tabs:            'id, userId, type, order',
+      windows:         'id, tabId, userId, [userId+tabId], archived, inRecycleBin, monthKey, order',
+      entries:         'id, windowId, userId, entryDate, linkedPersonId',
+      persons:         'id, userId, order',
+      personEntries:   'id, personId, userId, entryDate, linkedEntryId',
+      vault:           'id, userId',
+      syncQueue:       '++id, collection, documentId, createdAt',
+      failedSyncQueue: '++id, collection, documentId, failedAt',
+      lastSync:        'key',
     });
   }
 }

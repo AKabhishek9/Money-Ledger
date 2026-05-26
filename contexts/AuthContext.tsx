@@ -54,6 +54,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cachedUserId, setCachedUserId] = useState<string | null>(null);
+  const storeUserId = useStore((state) => state.userId);
 
   useEffect(() => {
     // 1. FAST-PATH: If we have a cached UID, load local data immediately
@@ -61,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let fastPathTriggered = false;
 
     if (cachedUid) {
+      setCachedUserId(cachedUid);
       fastPathTriggered = true;
       // Load Dexie into store RIGHT NOW — synchronously starts, sets storeUserId fast
       prepareLocalData(cachedUid).catch(() => undefined);
@@ -77,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (u) {
         // Official user found online
         localStorage.setItem('money_ledger_last_uid', u.uid);
+        setCachedUserId(u.uid);
         try {
           await prepareLocalData(u.uid);
         } catch (err) {
@@ -106,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (fastPathTriggered) {
           localStorage.removeItem('money_ledger_last_uid');
         }
+        setCachedUserId(null);
       }
 
       setUser((prev) => {
@@ -185,17 +190,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await firebaseSignOut(auth);
     await clearLocalData();
     useStore.getState().reset();
+    setCachedUserId(null);
   }, []);
 
   const userId = useMemo(() => {
     if (user?.uid) return user.uid;
-    const storeUserId = useStore.getState().userId;
     if (storeUserId) return storeUserId;
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('money_ledger_last_uid');
-    }
-    return null;
-  }, [user?.uid]);
+    // FIXED: BUG-M3
+    return cachedUserId;
+  }, [user?.uid, storeUserId, cachedUserId]);
 
   const stableUser = useMemo(() => user, [user?.uid]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -222,7 +225,20 @@ export function useAuth() {
  * 4. Load Dexie into Zustand (renders UI immediately)
  * 5. Purge recycle-bin items older than 30 days (fire-and-forget)
  */
+const preparingFor = new Map<string, Promise<void>>();
+
 async function prepareLocalData(userId: string): Promise<void> {
+  const existing = preparingFor.get(userId);
+  if (existing) return existing;
+
+  // FIXED: BUG-C2
+  const promise = _prepareLocalData(userId);
+  preparingFor.set(userId, promise);
+  promise.finally(() => preparingFor.delete(userId));
+  return promise;
+}
+
+async function _prepareLocalData(userId: string): Promise<void> {
   const db = await import('@/lib/db').then((m) => m.getDb());
   const hasLocalData = (await db.tabs.where('userId').equals(userId).count()) > 0;
 
@@ -233,7 +249,7 @@ async function prepareLocalData(userId: string): Promise<void> {
   // New device: don't show anything yet — wait for sync below
 
   // All network work runs in background — never blocks the UI
-  (async () => {
+  await (async () => {
     // Step 1: push any pending local writes first
     try {
       await processSyncQueue();

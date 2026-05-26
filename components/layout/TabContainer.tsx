@@ -5,6 +5,7 @@ import PersonalContent from '@/components/tabs/PersonalContent';
 import PeopleContent from '@/components/tabs/PeopleContent';
 import VaultContent from '@/components/tabs/VaultContent';
 import SearchContent from '@/components/tabs/SearchContent';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
 
 interface TabContainerProps {
   activeTab: number;
@@ -44,24 +45,32 @@ export default function TabContainer({ activeTab }: TabContainerProps) {
         className="tab-strip-inner"
         style={{ transform: `translateX(-${activeTab * 100}%)` }}
       >
-        {/* Panel 0: Personal */}
+        {/* Panel 0: Personal — FIXED: ARCH-3 */}
         <div className="tab-panel">
-          <PersonalContent />
+          <ErrorBoundary label="Personal">
+            <PersonalContent />
+          </ErrorBoundary>
         </div>
 
         {/* Panel 1: People */}
         <div className="tab-panel">
-          <PeopleContent />
+          <ErrorBoundary label="People">
+            <PeopleContent />
+          </ErrorBoundary>
         </div>
 
         {/* Panel 2: Vault */}
         <div className="tab-panel">
-          <VaultContent />
+          <ErrorBoundary label="Vault">
+            <VaultContent />
+          </ErrorBoundary>
         </div>
 
         {/* Panel 3: Search */}
         <div className="tab-panel">
-          <SearchContent />
+          <ErrorBoundary label="Search">
+            <SearchContent />
+          </ErrorBoundary>
         </div>
       </div>
     </div>

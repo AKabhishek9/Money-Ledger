@@ -1,7 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
-import { getDb } from '@/lib/db';
+import { getDb, type SyncQueueItem } from '@/lib/db';
 import { queueSync } from '@/lib/sync';
 import { v4 as uuid } from 'uuid';
 import type { MoneyWindow, Person, Tab } from '@/lib/types';
@@ -26,6 +26,26 @@ function groupWindowsByTab(windows: MoneyWindow[]): Record<string, MoneyWindow[]
   }, {});
 }
 
+function nextOrder(items: Array<{ order: number }>): number {
+  // FIXED: BUG-M1
+  return Math.max(...items.map((item) => item.order), -1) + 1;
+}
+
+function makeDeleteSyncItem(
+  collection: SyncQueueItem['collection'],
+  documentId: string,
+  offset: number
+): Omit<SyncQueueItem, 'id'> {
+  // FIXED: BUG-M2
+  return {
+    collection,
+    operation: 'delete',
+    documentId,
+    createdAt: Date.now() + offset,
+    retries: 0,
+  };
+}
+
 interface StoreState {
   tabs: Tab[];
   windows: MoneyWindow[];
@@ -37,7 +57,6 @@ interface StoreState {
   init: (userId: string) => Promise<void>;
   reset: () => void;
 
-  // Surgical remote-sync patches (called by realtime listener — no full reload)
   patchTab: (tab: Tab) => void;
   patchWindow: (window: MoneyWindow) => void;
   patchPerson: (person: Person) => void;
@@ -73,17 +92,12 @@ export const useStore = create<StoreState>((set, get) => ({
   isLoaded: false,
   userId: null,
 
-  // ── Full init from Dexie (called once at login) ───────────────────────────
   init: async (userId) => {
     const db = getDb();
     const [tabs, persons, windows] = await Promise.all([
       db.tabs.where('userId').equals(userId).sortBy('order'),
       db.persons.where('userId').equals(userId).sortBy('order'),
-      db.windows
-        .where('userId')
-        .equals(userId)
-        .filter(isVisibleWindow)
-        .toArray(),
+      db.windows.where('userId').equals(userId).filter(isVisibleWindow).toArray(),
     ]);
 
     const sortedWindowsByTabId = Object.fromEntries(
@@ -106,55 +120,51 @@ export const useStore = create<StoreState>((set, get) => ({
   reset: () =>
     set({ tabs: [], windows: [], windowsByTabId: {}, persons: [], isLoaded: false, userId: null }),
 
-  // ── Surgical patches — used by realtime sync to avoid full reload ─────────
-
-  patchTab: (incoming: Tab) => {
+  patchTab: (incoming) => {
     set((state) => {
-      const exists = state.tabs.find((t) => t.id === incoming.id);
+      const exists = state.tabs.find((tab) => tab.id === incoming.id);
       const tabs = exists
-        ? state.tabs.map((t) => (t.id === incoming.id ? { ...t, ...incoming } : t))
+        ? state.tabs.map((tab) => (tab.id === incoming.id ? { ...tab, ...incoming } : tab))
         : [...state.tabs, incoming];
       return { tabs };
     });
   },
 
-  patchWindow: (incoming: MoneyWindow) => {
+  patchWindow: (incoming) => {
     set((state) => {
-      const mergeInto = (list: MoneyWindow[]) => {
-        const exists = list.find((w) => w.id === incoming.id);
-        const updated = exists
-          ? list.map((w) => (w.id === incoming.id ? { ...w, ...incoming } : w))
-          : [...list, incoming];
-        return sortWindows(updated.filter(isVisibleWindow));
-      };
+      const existingTabId = Object.entries(state.windowsByTabId).find(([, tabWindows]) =>
+        tabWindows.some((window) => window.id === incoming.id)
+      )?.[0];
+      const affectedTabIds = new Set([existingTabId, incoming.tabId].filter(Boolean) as string[]);
+      const windowsByTabId = { ...state.windowsByTabId };
 
-      const windowsByTabId = Object.fromEntries(
-        Object.entries(state.windowsByTabId).map(([tabId, tabWindows]) => [
-          tabId,
-          incoming.tabId === tabId ? mergeInto(tabWindows) : tabWindows,
-        ])
-      );
-
-      // If the window belongs to a tab not yet in windowsByTabId, add it
-      if (!windowsByTabId[incoming.tabId]) {
-        windowsByTabId[incoming.tabId] = isVisibleWindow(incoming) ? [incoming] : [];
+      for (const tabId of affectedTabIds) {
+        const current = windowsByTabId[tabId] || [];
+        const withoutIncoming = current.filter((window) => window.id !== incoming.id);
+        const nextList =
+          tabId === incoming.tabId && isVisibleWindow(incoming)
+            ? [...withoutIncoming, incoming]
+            : withoutIncoming;
+        // FIXED: PERF-6
+        windowsByTabId[tabId] = sortWindows(nextList);
       }
 
       return { windowsByTabId };
     });
   },
 
-  patchPerson: (incoming: Person) => {
+  patchPerson: (incoming) => {
     set((state) => {
-      const exists = state.persons.find((p) => p.id === incoming.id);
+      const exists = state.persons.find((person) => person.id === incoming.id);
       const persons = exists
-        ? state.persons.map((p) => (p.id === incoming.id ? { ...p, ...incoming } : p))
+        ? state.persons.map((person) =>
+            person.id === incoming.id ? { ...person, ...incoming } : person
+          )
         : [...state.persons, incoming];
       return { persons };
     });
   },
 
-  // ── Tab operations ────────────────────────────────────────────────────────
   loadTabs: async (userId) => {
     const db = getDb();
     const tabs = await db.tabs.where('userId').equals(userId).sortBy('order');
@@ -166,7 +176,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const db = getDb();
     const id = uuid();
     const now = new Date();
-    const order = await db.tabs.where('userId').equals(userId).count();
+    const order = nextOrder(await db.tabs.where('userId').equals(userId).toArray());
     const tab: Tab = {
       id,
       userId,
@@ -200,14 +210,19 @@ export const useStore = create<StoreState>((set, get) => ({
   deleteTab: async (id) => {
     const db = getDb();
     const windows = await db.windows.where('tabId').equals(id).toArray();
+    const deleteSyncItems: Omit<SyncQueueItem, 'id'>[] = [];
 
     for (const window of windows) {
       const entries = await db.entries.where('windowId').equals(window.id).toArray();
       for (const entry of entries) {
-        await queueSync('entries', 'delete', entry.id);
+        deleteSyncItems.push(makeDeleteSyncItem('entries', entry.id, deleteSyncItems.length));
       }
+      deleteSyncItems.push(makeDeleteSyncItem('windows', window.id, deleteSyncItems.length));
       await db.entries.where('windowId').equals(window.id).delete();
-      await queueSync('windows', 'delete', window.id);
+    }
+
+    if (deleteSyncItems.length > 0) {
+      await db.syncQueue.bulkAdd(deleteSyncItems);
     }
 
     await db.windows.where('tabId').equals(id).delete();
@@ -223,7 +238,6 @@ export const useStore = create<StoreState>((set, get) => ({
     });
   },
 
-  // ── Window operations ─────────────────────────────────────────────────────
   loadWindows: async (userId, tabId) => {
     const db = getDb();
     const windows = await db.windows
@@ -245,7 +259,9 @@ export const useStore = create<StoreState>((set, get) => ({
     const db = getDb();
     const id = uuid();
     const now = new Date();
-    const order = await db.windows.where('tabId').equals(tabId).count();
+    const order = nextOrder(
+      await db.windows.where('[userId+tabId]').equals([userId, tabId]).toArray()
+    );
     const window: MoneyWindow = {
       id,
       userId,
@@ -299,7 +315,6 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   softDeleteWindow: async (id) => {
-    // Record when it was moved to the bin — used for 30-day TTL
     await get().updateWindow(id, { inRecycleBin: true, deletedAt: new Date() } as Partial<MoneyWindow>);
   },
 
@@ -311,8 +326,10 @@ export const useStore = create<StoreState>((set, get) => ({
     const db = getDb();
     const entries = await db.entries.where('windowId').equals(id).toArray();
 
-    for (const entry of entries) {
-      await queueSync('entries', 'delete', entry.id);
+    if (entries.length > 0) {
+      await db.syncQueue.bulkAdd(
+        entries.map((entry, index) => makeDeleteSyncItem('entries', entry.id, index))
+      );
     }
 
     await db.entries.where('windowId').equals(id).delete();
@@ -329,7 +346,6 @@ export const useStore = create<StoreState>((set, get) => ({
     }));
   },
 
-  // ── Person operations ─────────────────────────────────────────────────────
   loadPersons: async (userId) => {
     const db = getDb();
     const persons = await db.persons.where('userId').equals(userId).sortBy('order');
@@ -341,7 +357,7 @@ export const useStore = create<StoreState>((set, get) => ({
     const db = getDb();
     const id = uuid();
     const now = new Date();
-    const order = await db.persons.where('userId').equals(userId).count();
+    const order = nextOrder(await db.persons.where('userId').equals(userId).toArray());
     const person: Person = {
       id,
       userId,
@@ -373,11 +389,7 @@ export const useStore = create<StoreState>((set, get) => ({
   deletePerson: async (id) => {
     const db = getDb();
 
-    // Step 1: clear linkedPersonId from any window entries referencing this person
-    const linkedWindowEntries = await db.entries
-      .where('linkedPersonId')
-      .equals(id)
-      .toArray();
+    const linkedWindowEntries = await db.entries.where('linkedPersonId').equals(id).toArray();
 
     for (const entry of linkedWindowEntries) {
       const now = new Date();
@@ -394,14 +406,12 @@ export const useStore = create<StoreState>((set, get) => ({
       });
     }
 
-    // Step 2: delete all person ledger entries
     const personEntries = await db.personEntries.where('personId').equals(id).toArray();
     for (const entry of personEntries) {
       await queueSync('personEntries', 'delete', entry.id);
     }
     await db.personEntries.where('personId').equals(id).delete();
 
-    // Step 3: delete the person
     await db.persons.delete(id);
     await queueSync('persons', 'delete', id);
 
