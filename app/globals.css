@@ -331,6 +331,15 @@ input[type='date']::-webkit-calendar-picker-indicator {
   box-shadow: var(--shadow-glass);
 }
 
+/* Glass banner / popup — higher opacity & blur to prevent text overlap/bleed-through */
+.glass-banner {
+  background: rgba(22, 22, 24, 0.95);
+  backdrop-filter: blur(40px) saturate(1.4) brightness(1.2);
+  -webkit-backdrop-filter: blur(40px) saturate(1.4) brightness(1.2);
+  border: 1px solid var(--color-glass-border-accent);
+  box-shadow: var(--shadow-glass);
+}
+
 /* Legacy .glass alias for backward compat */
 .glass {
   background: var(--color-glass);

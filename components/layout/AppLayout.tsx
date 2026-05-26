@@ -3,10 +3,13 @@
 import { useState, useEffect } from 'react';
 import BottomNav from './BottomNav';
 import MoreDrawer from '../tabs/MoreDrawer';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
+import InstallBanner from '@/components/ui/InstallBanner';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [showMore, setShowMore] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const { installState, showBanner, triggerInstall, dismissBanner } = useInstallPrompt();
   const [isOnline, setIsOnline] = useState(
     typeof window !== 'undefined' ? navigator.onLine : true
   );
@@ -57,6 +60,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </main>
       <BottomNav onMoreClick={() => setShowMore(true)} />
       {showMore && <MoreDrawer onClose={() => setShowMore(false)} />}
+      {showBanner && (installState === 'available' || installState === 'ios') && (
+        <InstallBanner
+          installState={installState}
+          onInstall={triggerInstall}
+          onDismiss={dismissBanner}
+        />
+      )}
     </div>
   );
 }

@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LogOut, Shield, Info, ChevronRight, BookOpen, Archive } from 'lucide-react';
+import { LogOut, Shield, Info, ChevronRight, BookOpen, Archive, Download, CheckCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import AuthGuard from '@/components/auth/AuthGuard';
 import AppLayout from '@/components/layout/AppLayout';
 import Header from '@/components/layout/Header';
 import Confirm from '@/components/ui/Confirm';
 import { useAuth } from '@/contexts/AuthContext';
+import { useInstallPrompt } from '@/hooks/useInstallPrompt';
 import packageJson from '../../package.json';
 
 export default function SettingsPage() {
@@ -24,6 +25,7 @@ function SettingsContent() {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const [showSignOut, setShowSignOut] = useState(false);
+  const { installState, triggerInstall } = useInstallPrompt();
 
   const handleSignOut = async () => {
     await signOut();
@@ -85,6 +87,35 @@ function SettingsContent() {
             },
           ]}
         />
+
+        {/* App Installation */}
+        {installState !== 'installed' && installState !== 'unsupported' && installState !== 'idle' && (
+          <SettingsGroup
+            label="App"
+            items={[
+              {
+                icon: <Download size={18} />,
+                label: 'Install App',
+                value: installState === 'ios' ? 'Tap Share → Add to Home Screen' : 'Add to home screen',
+                onPress: installState === 'available' ? triggerInstall : undefined,
+              },
+            ]}
+          />
+        )}
+
+        {installState === 'installed' && (
+          <SettingsGroup
+            label="App"
+            items={[
+              {
+                icon: <CheckCircle size={18} />,
+                label: 'App Installed',
+                value: 'Running from home screen ✓',
+                valueColor: 'var(--color-income)',
+              },
+            ]}
+          />
+        )}
 
         {/* About */}
         <SettingsGroup
