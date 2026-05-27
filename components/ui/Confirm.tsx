@@ -1,5 +1,8 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+
 interface ConfirmProps {
   title: string;
   message: string;
@@ -19,9 +22,14 @@ export default function Confirm({
   onConfirm,
   onCancel,
 }: ConfirmProps) {
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-6 animate-fade-in"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-6 animate-fade-in"
       style={{ background: 'var(--color-modal-backdrop)' }}
       onClick={(e) => e.target === e.currentTarget && onCancel()}
     >
@@ -56,6 +64,7 @@ export default function Confirm({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

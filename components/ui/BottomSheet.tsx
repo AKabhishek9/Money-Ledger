@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface BottomSheetProps {
@@ -11,14 +12,16 @@ interface BottomSheetProps {
 }
 
 export default function BottomSheet({ title, onClose, children, height = 'auto' }: BottomSheetProps) {
+  const [mounted, setMounted] = useState(false);
+  const [startY, setStartY] = useState<number | null>(null);
+  const [currentY, setCurrentY] = useState<number | null>(null);
+
   // Prevent body scroll
   useEffect(() => {
+    setMounted(true);
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
-
-  const [startY, setStartY] = useState<number | null>(null);
-  const [currentY, setCurrentY] = useState<number | null>(null);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     setStartY(e.touches[0].clientY);
@@ -53,7 +56,9 @@ export default function BottomSheet({ title, onClose, children, height = 'auto' 
 
   const deltaY = (currentY !== null && startY !== null) ? currentY - startY : 0;
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex flex-col justify-end animate-fade-in"
       style={{ background: 'var(--color-sheet-backdrop)' }}
@@ -108,6 +113,7 @@ export default function BottomSheet({ title, onClose, children, height = 'auto' 
         {/* Safe area bottom */}
         <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
