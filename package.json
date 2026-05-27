@@ -1,6 +1,6 @@
 {
   "name": "money-ledger",
-  "version": "2.6.2",
+  "version": "2.6.4",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,6 +12,7 @@
     "@types/uuid": "^10.0.0",
     "dexie": "^4.4.2",
     "firebase": "^12.12.1",
+    "lottie-react": "^2.4.1",
     "lucide-react": "^1.14.0",
     "next": "16.2.4",
     "papaparse": "^5.4.1",

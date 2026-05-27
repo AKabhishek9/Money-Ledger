@@ -1,3 +1,10 @@
+'use client';
+
+import dynamic from 'next/dynamic';
+import animationData from '@/public/loading.json';
+
+const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
+
 interface LoaderProps {
   label?: string;
   fullScreen?: boolean;
@@ -7,16 +14,13 @@ interface LoaderProps {
 export default function Loader({ label = 'Loading...', fullScreen = false, className = '' }: LoaderProps) {
   return (
     <div
-      className={`flex flex-col items-center justify-center gap-5 ${fullScreen ? 'fixed inset-0 z-50' : 'py-16'} ${className}`.trim()}
+      className={`flex flex-col items-center justify-center gap-2 ${fullScreen ? 'fixed inset-0 z-50' : 'py-16'} ${className}`.trim()}
       style={{ background: fullScreen ? 'var(--color-bg)' : 'transparent' }}
       role="status"
       aria-live="polite"
     >
-      {/* Concentric spinner rings */}
-      <div className="spinner-ring spinner-outer">
-        <div className="spinner-ring spinner-mid">
-          <div className="spinner-ring spinner-inner" />
-        </div>
+      <div className="w-16 h-16 flex items-center justify-center">
+        <Lottie animationData={animationData} loop={true} />
       </div>
 
       {label && (
