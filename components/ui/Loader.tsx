@@ -19,7 +19,7 @@ export default function Loader({ label = 'Loading...', fullScreen = false, class
       role="status"
       aria-live="polite"
     >
-      <div className="w-16 h-16 flex items-center justify-center">
+      <div className="w-64 h-64 flex items-center justify-center">
         <Lottie animationData={animationData} loop={true} />
       </div>
 
