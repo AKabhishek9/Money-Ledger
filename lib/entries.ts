@@ -140,12 +140,24 @@ export async function localDeletePersonEntry(id: string): Promise<void> {
 
 export async function localGetEntries(windowId: string): Promise<Entry[]> {
   const db = getDb();
-  return db.entries.where('windowId').equals(windowId).sortBy('entryDate');
+  const entries = await db.entries.where('windowId').equals(windowId).toArray();
+  // Chronological order: by entryDate first, then createdAt as tiebreaker (oldest first, newest at bottom — like chat)
+  return entries.sort((a, b) => {
+    const dateDiff = new Date(a.entryDate).getTime() - new Date(b.entryDate).getTime();
+    if (dateDiff !== 0) return dateDiff;
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
 }
 
 export async function localGetPersonEntries(personId: string): Promise<PersonEntry[]> {
   const db = getDb();
-  return db.personEntries.where('personId').equals(personId).sortBy('entryDate');
+  const entries = await db.personEntries.where('personId').equals(personId).toArray();
+  // Chronological order: by entryDate first, then createdAt as tiebreaker (oldest first, newest at bottom — like chat)
+  return entries.sort((a, b) => {
+    const dateDiff = new Date(a.entryDate).getTime() - new Date(b.entryDate).getTime();
+    if (dateDiff !== 0) return dateDiff;
+    return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+  });
 }
 
 export function computeRunningBalance<T extends { amount: number; entryDate: Date; createdAt?: Date }>(

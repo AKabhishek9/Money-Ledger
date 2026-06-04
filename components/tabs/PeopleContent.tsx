@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { localGetPersonEntries } from '@/lib/entries';
 import { formatAmount, calcTotal } from '@/lib/parser';
 import { useStore } from '@/store/useStore';
+import { useBackHandler } from '@/hooks/useBackHandler';
 import type { Person, PersonEntry } from '@/lib/types';
 
 export default function PeopleContent() {
@@ -38,6 +39,9 @@ export default function PeopleContent() {
 
   const selectedPerson = persons.find((p) => p.id === personId) || null;
   const prevPersonIdRef = useRef<string | null>(null);
+
+  // Handle device back button: close person ledger and return to list
+  useBackHandler(!!personId, () => setPersonId(null), 'people-person');
 
   useEffect(() => {
     const prev = prevPersonIdRef.current;

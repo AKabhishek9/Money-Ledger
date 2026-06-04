@@ -13,7 +13,7 @@ function isVisibleWindow(window: MoneyWindow): boolean {
 function sortWindows(windows: MoneyWindow[]): MoneyWindow[] {
   return [...windows].sort((a, b) => {
     if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
-    if (a.monthKey && b.monthKey) return b.monthKey.localeCompare(a.monthKey);
+    // Chronological order: oldest first, newest at bottom (like chat)
     return (a.order || 0) - (b.order || 0);
   });
 }

@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { useBackHandler } from '@/hooks/useBackHandler';
 
 interface BottomSheetProps {
   title?: string;
@@ -15,6 +16,10 @@ export default function BottomSheet({ title, onClose, children, height = 'auto' 
   const [mounted, setMounted] = useState(false);
   const [startY, setStartY] = useState<number | null>(null);
   const [currentY, setCurrentY] = useState<number | null>(null);
+  const instanceId = useId();
+
+  // Handle device back button: close the sheet instead of exiting the app
+  useBackHandler(true, onClose, `bottom-sheet-${instanceId}`);
 
   // Prevent body scroll
   useEffect(() => {

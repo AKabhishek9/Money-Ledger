@@ -5,6 +5,7 @@ import BottomNav from './BottomNav';
 import TabContainer from './TabContainer';
 import MoreDrawer from '../tabs/MoreDrawer';
 import { useInstallPrompt } from '@/hooks/useInstallPrompt';
+import { useRootBackGuard } from '@/hooks/useBackHandler';
 import InstallBanner from '@/components/ui/InstallBanner';
 
 /** URL pathnames for the 4 main tabs (order matches tab indices) */
@@ -27,6 +28,9 @@ export default function AppLayout({ children, initialTab }: AppLayoutProps) {
   const [isOnline, setIsOnline] = useState(
     typeof window !== 'undefined' ? navigator.onLine : true
   );
+
+  // Prevent app from closing when pressing back at the root level
+  useRootBackGuard();
 
   // Listen for keyboard-toggle to remove bottom padding when keyboard is open
   useEffect(() => {

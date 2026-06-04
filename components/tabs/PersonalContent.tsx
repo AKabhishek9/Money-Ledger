@@ -14,6 +14,7 @@ import { ensureSystemData } from '@/lib/bootstrap';
 import { getDb } from '@/lib/db';
 import { localGetEntries } from '@/lib/entries';
 import { useStore } from '@/store/useStore';
+import { useBackHandler } from '@/hooks/useBackHandler';
 import type { Tab, MoneyWindow, Entry } from '@/lib/types';
 import { formatAmount } from '@/lib/parser';
 import { Archive } from 'lucide-react';
@@ -59,6 +60,9 @@ export default function PersonalContent() {
   const selectedWindow = windows.find((w) => w.id === windowId) || null;
   const prevWindowIdRef = useRef<string | null>(null);
   const statsCacheRef = useRef<Map<string, WindowStats>>(new Map());
+
+  // Handle device back button: close window view and return to list
+  useBackHandler(!!windowId, () => setWindowId(null), 'personal-window');
 
   const refreshWindowStats = useCallback(
     async (

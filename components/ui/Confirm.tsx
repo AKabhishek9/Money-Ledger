@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useId } from 'react';
 import { createPortal } from 'react-dom';
+import { useBackHandler } from '@/hooks/useBackHandler';
 
 interface ConfirmProps {
   title: string;
@@ -23,7 +24,11 @@ export default function Confirm({
   onCancel,
 }: ConfirmProps) {
   const [mounted, setMounted] = useState(false);
+  const instanceId = useId();
   useEffect(() => setMounted(true), []);
+
+  // Handle device back button: dismiss the dialog instead of exiting the app
+  useBackHandler(mounted, onCancel, `confirm-${instanceId}`);
 
   if (!mounted) return null;
 
