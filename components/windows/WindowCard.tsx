@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { MoreVertical, Pin, Archive, Trash2, Pencil } from 'lucide-react';
+import { MoreVertical, Pin, Archive, Trash2, Pencil, FolderInput } from 'lucide-react';
 import { formatAmount } from '@/lib/parser';
 import type { MoneyWindow, Entry } from '@/lib/types';
 
@@ -15,6 +15,7 @@ interface WindowCardProps {
   onArchive: () => void;
   onDelete: () => void;
   onRename: () => void;
+  onMove?: () => void;
 }
 
 export default function WindowCard({
@@ -27,6 +28,7 @@ export default function WindowCard({
   onArchive,
   onDelete,
   onRename,
+  onMove,
 }: WindowCardProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -120,6 +122,13 @@ export default function WindowCard({
               label={w.pinned ? 'Unpin' : 'Pin to top'}
               onClick={() => { setMenuOpen(false); onPin(); }}
             />
+            {onMove && (
+              <MenuItem
+                icon={<FolderInput size={14} />}
+                label="Move to"
+                onClick={() => { setMenuOpen(false); onMove(); }}
+              />
+            )}
             <MenuItem
               icon={<Archive size={14} />}
               label="Archive"

@@ -8,7 +8,7 @@ import AppLayout from '@/components/layout/AppLayout';
 import Header from '@/components/layout/Header';
 import WindowCard from '@/components/windows/WindowCard';
 import WindowView from '@/components/windows/WindowView';
-import BottomSheet from '@/components/ui/BottomSheet';
+import { AddPageSheet, RenamePageSheet, DeletePageConfirm, MovePageSheet } from '@/components/windows/WindowActions';
 import Confirm from '@/components/ui/Confirm';
 import Loader from '@/components/ui/Loader';
 import { useAuth } from '@/contexts/AuthContext';
@@ -65,6 +65,7 @@ function TabContent() {
   const [showDeleteTab, setShowDeleteTab] = useState(false);
   const [renameTarget, setRenameTarget] = useState<MoneyWindow | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
+  const [moveTarget, setMoveTarget] = useState<MoneyWindow | null>(null);
 
   const selectedWindow = windows.find((w) => w.id === windowId) || null;
 
@@ -226,83 +227,52 @@ function TabContent() {
           <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>Tap + to create a page</p>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto pt-4 pb-24">
-          {windows.map((w) => (
-            <WindowCard
-              key={w.id}
-              window={w}
-              total={windowStats[w.id]?.total ?? 0}
-              entryCount={windowStats[w.id]?.count ?? 0}
-              onClick={() => router.push(`/tab?t=${tabId}&w=${w.id}`)}
-              onPin={() => { updateWindowStore(w.id, { pinned: !w.pinned }); load(); }}
-              onArchive={() => { updateWindowStore(w.id, { archived: true }); load(); }}
-              onDelete={() => setDeleteTarget(w)}
-              onRename={() => {
-                setRenameTitle(w.title);
-                setRenameTarget(w);
-              }}
-            />
-          ))}
+        <div className="flex-1 overflow-y-auto pt-4 pb-24 px-4">
+          <div style={{ columns: '2', columnGap: '0.75rem' }} className="sm:columns-3 md:columns-4">
+            {windows.map((w) => (
+              <div key={w.id} style={{ breakInside: 'avoid', marginBottom: '0.75rem' }}>
+                <WindowCard
+                  window={w}
+                  total={windowStats[w.id]?.total ?? 0}
+                  entryCount={windowStats[w.id]?.count ?? 0}
+                  onClick={() => router.push(`/tab?t=${tabId}&w=${w.id}`)}
+                  onPin={() => { updateWindowStore(w.id, { pinned: !w.pinned }); load(); }}
+                  onArchive={() => { updateWindowStore(w.id, { archived: true }); load(); }}
+                  onDelete={() => setDeleteTarget(w)}
+                  onRename={() => {
+                    setRenameTitle(w.title);
+                    setRenameTarget(w);
+                  }}
+                  onMove={() => setMoveTarget(w)}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
       {showAddSheet && (
-        <BottomSheet title="New Page" onClose={() => setShowAddSheet(false)}>
-          <div className="p-4 flex flex-col gap-4">
-            <input
-              type="text"
-              value={newWindowTitle}
-              onChange={(e) => setNewWindowTitle(e.target.value)}
-              placeholder="Page title"
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-              style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddWindow()}
-              autoFocus
-            />
-            <button
-              onClick={handleAddWindow}
-              disabled={!newWindowTitle.trim()}
-              className="w-full py-3 rounded-xl text-sm font-semibold"
-              style={{ background: newWindowTitle.trim() ? 'var(--color-accent)' : 'var(--color-text-dim)', color: 'var(--color-on-accent)' }}
-            >
-              Create Page
-            </button>
-          </div>
-        </BottomSheet>
+        <AddPageSheet
+          value={newWindowTitle}
+          onChange={setNewWindowTitle}
+          onSubmit={handleAddWindow}
+          onClose={() => setShowAddSheet(false)}
+        />
       )}
 
-      {/* Rename window sheet */}
       {renameTarget && (
-        <BottomSheet title="Rename Page" onClose={() => setRenameTarget(null)}>
-          <div className="p-4 flex flex-col gap-4">
-            <input
-              type="text"
-              value={renameTitle}
-              onChange={(e) => setRenameTitle(e.target.value)}
-              placeholder="Page title"
-              className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-              style={{ background: 'var(--color-surface-2)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}
-              onKeyDown={(e) => e.key === 'Enter' && handleRename()}
-              autoFocus
-            />
-            <button
-              onClick={handleRename}
-              disabled={!renameTitle.trim() || renameTitle.trim() === renameTarget.title}
-              className="w-full py-3 rounded-xl text-sm font-semibold"
-              style={{ background: renameTitle.trim() && renameTitle.trim() !== renameTarget.title ? 'var(--color-accent)' : 'var(--color-text-dim)', color: 'var(--color-on-accent)' }}
-            >
-              Save
-            </button>
-          </div>
-        </BottomSheet>
+        <RenamePageSheet
+          value={renameTitle}
+          originalTitle={renameTarget.title}
+          onChange={setRenameTitle}
+          onSubmit={handleRename}
+          onClose={() => setRenameTarget(null)}
+        />
       )}
 
       {deleteTarget && (
-        <Confirm
-          title="Move to Trash?"
-          message={`"${deleteTarget.title}" will be moved to the recycle bin.`}
-          confirmLabel="Delete"
-          danger
+        <DeletePageConfirm
+          window={deleteTarget}
           onConfirm={() => handleDeleteWindow(deleteTarget)}
           onCancel={() => setDeleteTarget(null)}
         />
@@ -316,6 +286,14 @@ function TabContent() {
           danger
           onConfirm={handleDeleteTab}
           onCancel={() => setShowDeleteTab(false)}
+        />
+      )}
+
+      {moveTarget && (
+        <MovePageSheet
+          window={moveTarget}
+          onClose={() => setMoveTarget(null)}
+          onMoved={() => load()}
         />
       )}
     </div>

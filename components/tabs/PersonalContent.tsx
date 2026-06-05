@@ -6,7 +6,7 @@ import { Plus } from 'lucide-react';
 import Header from '@/components/layout/Header';
 import WindowCard from '@/components/windows/WindowCard';
 import WindowView from '@/components/windows/WindowView';
-import BottomSheet from '@/components/ui/BottomSheet';
+import { AddPageSheet, RenamePageSheet, DeletePageConfirm, MovePageSheet } from '@/components/windows/WindowActions';
 import Confirm from '@/components/ui/Confirm';
 import Loader from '@/components/ui/Loader';
 import { useAuth } from '@/contexts/AuthContext';
@@ -56,6 +56,7 @@ export default function PersonalContent() {
   const [archiveTarget, setArchiveTarget] = useState<MoneyWindow | null>(null);
   const [renameTarget, setRenameTarget] = useState<MoneyWindow | null>(null);
   const [renameTitle, setRenameTitle] = useState('');
+  const [moveTarget, setMoveTarget] = useState<MoneyWindow | null>(null);
 
   const selectedWindow = windows.find((w) => w.id === windowId) || null;
   const prevWindowIdRef = useRef<string | null>(null);
@@ -341,9 +342,9 @@ export default function PersonalContent() {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto pt-3 pb-24 px-4">
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <div style={{ columns: '2', columnGap: '0.75rem' }} className="sm:columns-3 md:columns-4">
             {windows.map((w) => (
-              <div key={w.id}>
+              <div key={w.id} style={{ breakInside: 'avoid', marginBottom: '0.75rem' }}>
                 <WindowCard
                   window={w}
                   total={windowStats[w.id]?.total ?? 0}
@@ -357,6 +358,7 @@ export default function PersonalContent() {
                     setRenameTitle(w.title);
                     setRenameTarget(w);
                   }}
+                  onMove={() => setMoveTarget(w)}
                 />
               </div>
             ))}
@@ -364,77 +366,38 @@ export default function PersonalContent() {
         </div>
       )}
 
-      {/* Add window sheet */}
       {showAddSheet && (
-        <BottomSheet title="New Page" onClose={() => setShowAddSheet(false)}>
-          <div className="p-4 flex flex-col gap-4">
-            <input
-              type="text"
-              value={newWindowTitle}
-              onChange={(e) => setNewWindowTitle(e.target.value)}
-              placeholder="Page title (e.g. Business Expenses)"
-              className="glass-input w-full px-4 py-3 rounded-xl text-sm outline-none"
-              style={{
-                color: 'var(--color-text)',
-              }}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddWindow()}
-              autoFocus
-            />
-            <button
-              onClick={handleAddWindow}
-              disabled={!newWindowTitle.trim()}
-              className="glass-btn-primary w-full py-3 rounded-xl text-sm font-semibold"
-              style={{
-                opacity: newWindowTitle.trim() ? 1 : 0.5,
-                color: 'var(--color-on-accent)',
-              }}
-            >
-              Create Page
-            </button>
-          </div>
-        </BottomSheet>
+        <AddPageSheet
+          value={newWindowTitle}
+          onChange={setNewWindowTitle}
+          onSubmit={handleAddWindow}
+          onClose={() => setShowAddSheet(false)}
+        />
       )}
 
-      {/* Rename window sheet */}
       {renameTarget && (
-        <BottomSheet title="Rename Page" onClose={() => setRenameTarget(null)}>
-          <div className="p-4 flex flex-col gap-4">
-            <input
-              type="text"
-              value={renameTitle}
-              onChange={(e) => setRenameTitle(e.target.value)}
-              placeholder="Page title"
-              className="glass-input w-full px-4 py-3 rounded-xl text-sm outline-none"
-              style={{
-                color: 'var(--color-text)',
-              }}
-              onKeyDown={(e) => e.key === 'Enter' && handleRename()}
-              autoFocus
-            />
-            <button
-              onClick={handleRename}
-              disabled={!renameTitle.trim() || renameTitle.trim() === renameTarget.title}
-              className="glass-btn-primary w-full py-3 rounded-xl text-sm font-semibold"
-              style={{
-                opacity: (renameTitle.trim() && renameTitle.trim() !== renameTarget.title) ? 1 : 0.5,
-                color: 'var(--color-on-accent)',
-              }}
-            >
-              Save
-            </button>
-          </div>
-        </BottomSheet>
+        <RenamePageSheet
+          value={renameTitle}
+          originalTitle={renameTarget.title}
+          onChange={setRenameTitle}
+          onSubmit={handleRename}
+          onClose={() => setRenameTarget(null)}
+        />
       )}
 
-      {/* Delete confirm */}
       {deleteTarget && (
-        <Confirm
-          title="Move to Trash?"
-          message={`"${deleteTarget.title}" will be moved to the recycle bin.`}
-          confirmLabel="Delete"
-          danger
+        <DeletePageConfirm
+          window={deleteTarget}
           onConfirm={() => handleDelete(deleteTarget)}
           onCancel={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {moveTarget && (
+        <MovePageSheet
+          window={moveTarget}
+          onClose={() => setMoveTarget(null)}
+          onMoved={() => {}}
         />
       )}
     </div>

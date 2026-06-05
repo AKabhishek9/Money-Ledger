@@ -299,17 +299,29 @@ export const useStore = create<StoreState>((set, get) => ({
     await db.windows.update(id, updated);
     await queueSync('windows', 'upsert', id, updated as Record<string, unknown>);
     set((state) => {
-      const updateOne = (window: MoneyWindow) =>
-        window.id === id ? { ...window, ...updated } : window;
-      const windowsByTabId = Object.fromEntries(
-        Object.entries(state.windowsByTabId).map(([tabId, tabWindows]) => [
-          tabId,
-          sortWindows(tabWindows.map(updateOne).filter(isVisibleWindow)),
-        ])
-      );
+      // Apply the update to all windows
+      const allUpdated = state.windows.map((w) =>
+        w.id === id ? { ...w, ...updated } : w
+      ).filter(isVisibleWindow);
+
+      // Re-group by tabId (handles moves between tabs correctly)
+      const newByTab: Record<string, MoneyWindow[]> = {};
+      // Preserve existing tab keys (even if empty after move)
+      for (const tabId of Object.keys(state.windowsByTabId)) {
+        newByTab[tabId] = [];
+      }
+      for (const w of allUpdated) {
+        if (!newByTab[w.tabId]) newByTab[w.tabId] = [];
+        newByTab[w.tabId].push(w);
+      }
+      // Sort each tab's windows
+      for (const tabId of Object.keys(newByTab)) {
+        newByTab[tabId] = sortWindows(newByTab[tabId]);
+      }
+
       return {
-        windows: sortWindows(state.windows.map(updateOne).filter(isVisibleWindow)),
-        windowsByTabId,
+        windows: sortWindows(allUpdated),
+        windowsByTabId: newByTab,
       };
     });
   },
