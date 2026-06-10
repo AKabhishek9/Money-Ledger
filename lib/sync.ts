@@ -5,7 +5,6 @@ import {
   deleteDoc,
   deleteField,
   doc,
-  getDocs,
   getDocsFromServer,
   onSnapshot,
   query,
@@ -201,14 +200,11 @@ export async function processSyncQueue(): Promise<void> {
   if (isProcessing) return;
 
   isProcessing = true;
-  const syncedAt = new Date();
 
   try {
     const db = getDb();
     const items = await db.syncQueue.orderBy('createdAt').limit(100).toArray();
     if (items.length === 0) return;
-
-    let anySuccess = false;
 
     for (const item of items) {
       if (item.id === undefined) continue;
@@ -217,7 +213,7 @@ export async function processSyncQueue(): Promise<void> {
         if (item.operation === 'upsert' && item.data) {
           await setDoc(
             doc(firestoreDb, item.collection, item.documentId),
-            toFirestore(item.data),
+            { ...toFirestore(item.data), updatedAt: new Date() },
             { merge: true }
           );
         } else if (item.operation === 'delete') {
@@ -226,7 +222,6 @@ export async function processSyncQueue(): Promise<void> {
 
         rememberLocalSync(item.collection, item.documentId);
         await db.syncQueue.delete(item.id);
-        anySuccess = true;
       } catch (err) {
         console.warn(`Sync failed for ${item.collection}/${item.documentId}:`, err);
         const retries = item.retries + 1;
@@ -247,11 +242,9 @@ export async function processSyncQueue(): Promise<void> {
         }
       }
     }
-
-    // Persist lastSyncTime only after we successfully pushed something
-    if (anySuccess) {
-      await saveLastSyncTime(syncedAt);
-    }
+    // NOTE: Push must NOT advance lastSyncTime — it is a PULL watermark.
+    // Advancing it here would cause the next delta sync to skip changes
+    // that other devices pushed before this push.
   } finally {
     isProcessing = false;
   }
@@ -336,7 +329,7 @@ export async function incrementalSync(userId: string): Promise<boolean> {
           where('userId', '==', userId),
           where('updatedAt', '>', since)
         );
-        const snapshot = await getDocs(q);
+        const snapshot = await getDocsFromServer(q);
         if (snapshot.empty) return;
 
         const table = db.table(collectionName) as Table<Record<string, unknown>, string>;
