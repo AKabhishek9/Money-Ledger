@@ -8,7 +8,7 @@ export default function OfflinePage() {
     >
       <div className="text-6xl mb-4">📒</div>
       <h1 className="text-xl font-bold mb-2" style={{ color: 'var(--color-text)' }}>
-        You're offline
+        You&apos;re offline
       </h1>
       <p className="text-sm mb-6" style={{ color: 'var(--color-text-muted)' }}>
         Your data is saved locally. Connect to sync.

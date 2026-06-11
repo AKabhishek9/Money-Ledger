@@ -34,7 +34,7 @@ export default function RegisterSW() {
         // In development, actively unregister any existing service workers
         // to prevent caching collisions when opening the PWA from the home screen icon
         navigator.serviceWorker.getRegistrations().then(function (registrations) {
-          for (let registration of registrations) {
+          for (const registration of registrations) {
             registration.unregister();
             console.log('Service Worker unregistered in dev mode');
           }
